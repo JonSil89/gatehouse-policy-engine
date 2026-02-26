@@ -96,9 +96,8 @@ GATE 1 GATE 2 GATE 3
 
 ## 📁 Repository Structure
 
-=======
 
-
+---
 .
 ├── .github/workflows/ # CI/CD quality gate
 ├── docs/ # Risk classification and change classification
