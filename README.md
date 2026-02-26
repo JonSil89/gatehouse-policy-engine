@@ -57,7 +57,13 @@ Developer → PR + change request → Automated validation → Review → Deploy
 MIT License. See `LICENSE` file for details.
 
 ---
+<div align="center">
 
-**Part of [Gatehouse Infrastructure](https://github.com/JonSil89)**
-- 🔧 [AI-ITSM-Compliance-Auto](https://github.com/JonSil89/AI-ITSM-Compliance-Auto)
-- 🏠 [HAaaS](https://github.com/JonSil89/HAaaS)
+## 🔗 Part of [Gatehouse Infrastructure](https://github.com/JonSil89)
+
+| Repository | Description |
+|------------|-------------|
+| [🔧 **AI-ITSM-Compliance-Auto**](https://github.com/JonSil89/AI-ITSM-Compliance-Auto) | Intelligent workflow orchestration |
+| [🏠 **HAaaS**](https://github.com/JonSil89/Home-Assistant-as-a-Service-HAaaS-) | IoT lifecycle management platform |
+
+</div>
