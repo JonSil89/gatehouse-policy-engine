@@ -1,73 +1,63 @@
+# Gatehouse Policy Engine
 
-[![Infrastructure Change Quality Gate](https://github.com/Jonnenpijonne/infrastructure-change-quality-gate/actions/workflows/quality-gate-demo.yml/badge.svg)](https://github.com/Jonnenpijonne/infrastructure-change-quality-gate/actions/workflows/quality-gate-demo.yml)
+Policy validation engine & approval gates for infrastructure changes.
 
-# Infrastructure Change Quality Gate
+## Purpose
+This repository implements a formal change management process for critical infrastructure. The system is based on ISO 27001 change management controls and provides an automated quality gate that ensures the quality, security, and traceability of every infrastructure change.
 
-DevSecOps-laatuporttijärjestelmä infrastruktuurimuutosten hallintaan.
-
-## Tarkoitus
-
-Tämä repositorio toteuttaa formaalin muutostenhallintaprosessin kriittiselle infrastruktuurille. Järjestelmä perustuu ISO 27001 -standardin muutostenhallintakontrolleihin ja tarjoaa automatisoidun laatuportin, joka varmistaa jokaisen infrastruktuurimuutoksen laadun, turvallisuuden ja jäljitettävyyden.
-
-## Arkkitehtuuri
-
-```
-Kehittäjä → PR + muutospyyntö → Automaattinen validointi → Katselmointi → Deploy-ehto → Merge
+## Architecture
+Developer → PR + change request → Automated validation → Review → Deployment condition → Merge
                                       │                        │              │
-                                 PORTTI 1               PORTTI 2        PORTTI 3
-                              (CI/CD-skripti)        (review-politiikka)  (aikaikkunat)
-```
+                                 GATE 1                   GATE 2         GATE 3
+                              (CI/CD script)         (review policy)   (time windows)
 
-### Kolme laatuporttia
+### Three Quality Gates
+1. **Automated validation (CI/CD)** — Python script checks change request structure, risk level, rollback plan, and freeze windows
+2. **Manual review** — Number of reviewers based on risk level (1-3 persons)
+3. **Deployment condition** — Time window check, staging validation, communication plan for critical changes
 
-1. **Automaattinen validointi (CI/CD)** — Python-skripti tarkistaa muutospyynnön rakenteen, riskiluokan, palautussuunnitelman ja freeze-ikkunat
-2. **Manuaalinen katselmointi** — Riskiluokan mukainen arvioijien määrä (1-3 henkilöä)
-3. **Deploy-ehto** — Aikaikkunan tarkistus, staging-validointi, kommunikaatiosuunnitelma kriittisille muutoksille
+### Risk Classes
+| Class | Level | Approvers | Examples |
+|-------|-------|-----------|----------|
+| 1 | Low | 1 | Documentation, minor configurations |
+| 2 | Medium | 2 | Infrastructure config, CI/CD changes, access management |
+| 3 | Critical | 3 + CISO | Network architecture, database migrations, security |
 
-### Riskiluokat
+## ISO 27001 Mapping
+- **A.12.1.2 Change Management** — Changes are documented, classified, and approved
+- **A.14.2.2 System Change Control** — Formal, auditable change process
+- **A.12.4.1 Event Logging** — Automated audit trail via CI/CD
 
-| Luokka | Taso | Hyväksyjät | Esimerkkejä |
-|--------|------|------------|-------------|
-| 1 | Matala | 1 | Dokumentaatio, pienet konfiguraatiot |
-| 2 | Keskitaso | 2 | Infra-konfiguraatio, CI/CD-muutokset, pääsynhallinta |
-| 3 | Kriittinen | 3 + CISO | Verkkoarkkitehtuuri, tietokantamigraatiot, tietoturva |
-
-## ISO 27001 -yhteys
-
-- **A.12.1.2** Change Management — Muutokset dokumentoidaan, luokitellaan ja hyväksytään
-- **A.14.2.2** System Change Control — Formaali, auditoitava muutosprosessi
-- **A.12.4.1** Event Logging — Automaattinen audit trail CI/CD:n kautta
-
-## Repositoriorakenne
-
-```
-├── .github/workflows/         # CI/CD laatuportti
-├── docs/                      # Riskiluokitus ja muutosluokittelu
+## Repository Structure
+├── .github/workflows/         # CI/CD quality gate
+├── docs/                      # Risk classification and change classification
 │   ├── risk-matrix.md
 │   └── change-classification.md
-├── templates/                 # Muutospyyntö- ja rollback-pohjat
+├── templates/                 # Change request and rollback templates
 │   ├── change-request-template.md
 │   └── rollback-plan-template.md
-├── validation/                # Automaattinen validointiskripti
+├── validation/                # Automated validation script
 │   └── pre-merge-checks/
 │       └── validate-change-request.py
-└── examples/                  # Valmiiksi täytetyt esimerkit (demo-haarassa)
-```
+└── examples/                  # Pre-filled examples (in demo branch)
 
-## Käyttöönotto
+## Getting Started
+1. Copy `templates/change-request-template.md` to PR description
+2. Fill in all required fields
+3. CI/CD runs automated validation
+4. Request review according to risk level
+5. Merge only after passing all gates
 
-1. Kopioi `templates/change-request-template.md` PR-kuvaukseen
-2. Täytä kaikki pakolliset kentät
-3. CI/CD ajaa automaattisen validoinnin
-4. Pyydä katselmointi riskiluokan mukaiselta määrältä arvioijia
-5. Merge sallitaan vasta kaikkien porttien läpäisyn jälkeen
+## Branch Strategy
+- `main` — Protected production branch, direct pushes blocked
+- `develop` — Active development branch
+- `demo/leadership-demo` — Pre-filled examples for leadership demonstration
 
-## Branch-strategia
+## License
+MIT License. See `LICENSE` file for details.
 
-- `main` — Suojattu tuotantohaara, suorat pushat estetty
-- `develop` — Aktiivinen kehityshaara
-- `demo/johtoportaalle` — Valmiit esimerkit johdon demonstraatioon
+---
 
-## Lisenssi
-
-Tämä projekti on lisensoitu MIT-lisenssillä. Katso `LICENSE`-tiedosto lisätietoja varten.
+**Part of [Gatehouse Infrastructure](https://github.com/JonSil89)**
+- 🔧 [AI-ITSM-Compliance-Auto](https://github.com/JonSil89/AI-ITSM-Compliance-Auto)
+- 🏠 [HAaaS](https://github.com/JonSil89/HAaaS)
