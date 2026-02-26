@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 
 <div align="center">
 
@@ -23,7 +23,6 @@
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-yellow)](validation/)
 
->>>>>>> 6d3d0a568ac91fa0163dec07243ed526fd3c5fdf
 </div>
 
 ---
@@ -35,7 +34,7 @@ This repository implements a **formal change management process for critical inf
 ---
 
 ## 🏗️ Architecture
-<<<<<<< HEAD
+
 Developer → PR + change request → Automated validation → Review → Deployment condition → Merge
 │ │ │
 GATE 1 GATE 2 GATE 3
@@ -49,7 +48,7 @@ text
 GATE 1 GATE 2 GATE 3
 (CI/CD script) (review policy) (time windows)                       (CI/CD script)         (review policy)   (time windows)
 
->>>>>>> 6d3d0a568ac91fa0163dec07243ed526fd3c5fdf
+
 
 ### Three Quality Gates
 
@@ -82,10 +81,10 @@ GATE 1 GATE 2 GATE 3
 ---
 
 ## 📁 Repository Structure
-<<<<<<< HEAD
+
 =======
 
->>>>>>> 6d3d0a568ac91fa0163dec07243ed526fd3c5fdf
+
 .
 ├── .github/workflows/ # CI/CD quality gate
 ├── docs/ # Risk classification and change classification
@@ -98,12 +97,12 @@ GATE 1 GATE 2 GATE 3
 │ └── pre-merge-checks/
 │ └── validate-change-request.py
 └── examples/ # Pre-filled examples (in demo branch)
-<<<<<<< HEAD
+
 
 text
 
 =======
->>>>>>> 6d3d0a568ac91fa0163dec07243ed526fd3c5fdf
+
 ---
 
 ## 🚀 Getting Started
@@ -131,10 +130,10 @@ text
 MIT License. See [LICENSE](LICENSE) file for details.
 
 ---
-<<<<<<< HEAD
+
 
 =======
->>>>>>> 6d3d0a568ac91fa0163dec07243ed526fd3c5fdf
+
 <div align="center">
 
 ## 🔗 Part of [Gatehouse Infrastructure](https://github.com/JonSil89)
@@ -146,6 +145,6 @@ MIT License. See [LICENSE](LICENSE) file for details.
 | [🏠 **HAaaS**](https://github.com/JonSil89/HAaaS) | IoT lifecycle management platform |
 =======
 | [🏠 **HAaaS**](https://github.com/JonSil89/Home-Assistant-as-a-Service-HAaaS-) | IoT lifecycle management platform |
->>>>>>> 6d3d0a568ac91fa0163dec07243ed526fd3c5fdf
+
 
 </div>
