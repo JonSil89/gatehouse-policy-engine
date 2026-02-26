@@ -1,5 +1,5 @@
 <div align="center">
-
+[![Infrastructure Change Quality Gate](https://github.com/JonSil89/gatehouse-policy-engine/actions/workflows/quality-gate-demo.yml/badge.svg)](https://github.com/JonSil89/gatehouse-policy-engine/actions/workflows/quality-gate-demo.yml)
 # 🏛️ Gatehouse Policy Engine
 
 **Policy validation engine & approval gates for infrastructure changes**
@@ -8,7 +8,7 @@
 [![Core](https://img.shields.io/badge/Gatehouse-Core-purple)](#)
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-yellow)](validation/)
-[![Infrastructure Change Quality Gate](https://github.com/JonSil89/gatehouse-policy-engine/actions/workflows/quality-gate-demo.yml/badge.svg)](https://github.com/JonSil89/gatehouse-policy-engine/actions/workflows/quality-gate-demo.yml)
+
 
 </div>
 
