@@ -76,19 +76,20 @@ flowchart LR
 
 
 ---
-.
-├── .github/workflows/ # CI/CD quality gate
-├── docs/ # Risk classification and change classification
-│ ├── risk-matrix.md
-│ └── change-classification.md
-├── templates/ # Change request and rollback templates
-│ ├── change-request-template.md
-│ └── rollback-plan-template.md
-├── validation/ # Automated validation script
-│ └── pre-merge-checks/
-│ └── validate-change-request.py
-└── examples/ # Pre-filled examples (in demo branch)
-
+```
+. 
+├── .github/workflows/          # CI/CD quality gate
+├── docs/                       # Risk classification
+│   ├── risk-matrix.md
+│   └── change-classification.md
+├── templates/                  # Change request templates
+│   ├── change-request-template.md
+│   └── rollback-plan-template.md
+├── validation/                 # Automated validation script
+│   └── pre-merge-checks/
+│       └── validate-change-request.py
+└── examples/                   # Pre-filled examples
+```
 
 ---
 
