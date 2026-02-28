@@ -62,20 +62,6 @@ GATE 1 GATE 2 GATE 3
 
 ---
 
-## 📁 Repository Structure
-.
-├── .github/workflows/ # CI/CD quality gate
-├── docs/ # Risk classification and change classification
-│ ├── risk-matrix.md
-│ └── change-classification.md
-├── templates/ # Change request and rollback templates
-│ ├── change-request-template.md
-│ └── rollback-plan-template.md
-├── validation/ # Automated validation script
-│ └── pre-merge-checks/
-│ └── validate-change-request.py
-└── examples/ # Pre-filled examples (in demo branch)
----
 
 ## ⚠️ Risk Classes
 
