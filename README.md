@@ -73,15 +73,6 @@ GATE 1 GATE 2 GATE 3
 
 ---
 
-## 🔒 ISO 27001 Mapping
-
-| Control | Description |
-|---------|-------------|
-| **A.12.1.2** | **Change Management** — Changes are documented, classified, and approved |
-| **A.14.2.2** | **System Change Control** — Formal, auditable change process |
-| **A.12.4.1** | **Event Logging** — Automated audit trail via CI/CD |
-
----
 
 ## 📁 Repository Structure
 
