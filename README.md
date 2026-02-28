@@ -25,10 +25,17 @@ This repository implements a **formal change management process for critical inf
 ## 🏗️ Architecture
 
 
-Developer → PR + change request → Automated validation → Review → Deployment condition → Merge
-│ │ │
-GATE 1 GATE 2 GATE 3
-(CI/CD script) (review policy) (time windows)
+```mermaid
+flowchart LR
+    A[Developer] --> B[PR + Change Request]
+    B --> C{GATE 1\nAutomated Validation\nCI/CD Script}
+    C -->|Pass| D{GATE 2\nManual Review\nReview Policy}
+    C -->|Fail| X[❌ Rejected]
+    D -->|Approved| E{GATE 3\nDeployment Condition\nTime Windows}
+    D -->|Rejected| X
+    E -->|Clear| F[✅ Merge]
+    E -->|Blocked| Y[⏸ Postponed]
+```
 
 
 
