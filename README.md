@@ -63,15 +63,6 @@ GATE 1 GATE 2 GATE 3
 ---
 
 
-## ⚠️ Risk Classes
-
-| Class | Level | Approvers | Examples |
-|:-----:|-------|-----------|----------|
-| **1** | Low | 1 | Documentation, minor configurations |
-| **2** | Medium | 2 | Infrastructure config, CI/CD changes, access management |
-| **3** | Critical | 3 + CISO | Network architecture, database migrations, security |
-
----
 
 
 ## 📁 Repository Structure
