@@ -1,0 +1,1 @@
+Add Class 2 example change request (CI/CD pipeline update)
