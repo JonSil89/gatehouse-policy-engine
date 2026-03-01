@@ -1,8 +1,12 @@
 # 🏛️ Gatehouse Audit Report
-**Status:** ✅ HYVÄKSYTTY  
-**Aikaleima:** 2026-03-01 13:09:38 UTC
+**Status:** ❌ FAILED
+**Timestamp:** 2026-03-01 13:45:57 UTC
 
-| Tarkistuskohde | Havaittu arvo | Tila |
+| Check | Value | Status |
 | :--- | :--- | :--- |
-| Riskiluokka | 2 | ✅ |
-| Rollback-suunnitelma | Löytyy | ✅ |
+| Risk Class | None | ❌ |
+| Rollback Plan | PUUTTUU | ❌ |
+
+### ⚠️ Critical Findings:
+- Riskiluokkaa ei löydetty (odotettiin numeroa).
+- Kriittinen puute: Palautussuunnitelma (Rollback plan) puuttuu dokumentista.
