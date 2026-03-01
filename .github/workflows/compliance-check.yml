@@ -18,7 +18,7 @@ jobs:
   validate:
     name: Quality Gate — Policy Validation
     runs-on: ubuntu-latest
-pip install pyyaml -q
+
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
