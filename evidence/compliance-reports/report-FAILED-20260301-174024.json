@@ -1,0 +1,28 @@
+{
+  "audit_status": "FAILED",
+  "timestamp": "2026-03-01T17:40:24Z",
+  "file": "examples/invalid-change-request.md",
+  "risk_class": null,
+  "passed": false,
+  "errors": [
+    "Pakollinen osio puuttuu: 'Perustiedot'",
+    "Pakollinen osio puuttuu: 'Kuvaus'",
+    "Pakollinen osio puuttuu: 'Vaikutusanalyysi'",
+    "Pakollinen kenttä puuttuu tai ei ole täytetty: 'Muutoksen nimi'",
+    "Pakollinen kenttä puuttuu tai ei ole täytetty: 'Pyytäjä'",
+    "Pakollinen kenttä puuttuu tai ei ole täytetty: 'Päivämäärä'",
+    "Pakollinen kenttä puuttuu tai ei ole täytetty: 'Riskiluokka'",
+    "Pakollinen kenttä puuttuu tai ei ole täytetty: 'Kohdeympäristö'",
+    "Riskiluokka puuttuu tai on virheellinen (1, 2 tai 3)"
+  ],
+  "warnings": [],
+  "info": [
+    "Validointi aloitettu: 2026-03-01T17:40:24Z",
+    "Tiedosto: examples/invalid-change-request.md"
+  ],
+  "iso_controls": [
+    "A.12.1.2",
+    "A.14.2.2",
+    "A.12.4.1"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "passed": false,
+  "risk_class": 1,
+  "compliance_score": 80,
+  "errors": [
+    "Hyväksyjiä liian vähän riskiluokalle 1"
+  ],
+  "warnings": [],
+  "timestamp": "2026-03-01T17:54:26Z",
+  "file": "examples/class1-test.md",
+  "iso_controls": [
+    "A.12.1.2",
+    "A.14.2.2",
+    "A.12.4.1"
+  ]
+}
