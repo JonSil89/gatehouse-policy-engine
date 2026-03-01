@@ -1,0 +1,9 @@
+{
+  "audit_status": "PASSED",
+  "timestamp": "2026-03-01T13:48:42.047347+00:00",
+  "checks": {
+    "Riskiluokka": "2",
+    "Rollback": "L\u00f6ytyy"
+  },
+  "errors": []
+}

@@ -1,0 +1,12 @@
+{
+  "audit_status": "FAILED",
+  "timestamp": "2026-03-01T13:48:42.788245+00:00",
+  "checks": {
+    "Riskiluokka": null,
+    "Rollback": "PUUTTUU"
+  },
+  "errors": [
+    "Riskiluokkaa ei l\u00f6ydetty.",
+    "Palautussuunnitelma puuttuu."
+  ]
+}
