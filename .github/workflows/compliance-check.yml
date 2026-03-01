@@ -28,11 +28,4 @@ jobs:
         with:
           name: gatehouse-audit-report
           path: evidence/compliance-reports/report.md
-          
-- name: Archive Compliance Reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gatehouse-audit-reports-${{ github.run_number }}
-          path: evidence/compliance-reports/
-          retention-days: 90
+
