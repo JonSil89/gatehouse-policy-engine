@@ -94,20 +94,18 @@ class ValidationResult:
     def passed(self):
         return len(self.errors) == 0
 
-    def summary(self):
+     def summary(self):
+        GREEN = '\033[92m'
+        RED = '\033[91m'
+        RESET = '\033[0m'
+
         lines = []
         lines.append("=" * 60)
         if self.passed:
-            lines.append("QUALITY GATE: PASSED")
+            lines.append(f"{GREEN}QUALITY GATE: PASSED{RESET}")
         else:
-            lines.append("QUALITY GATE: FAILED")
+            lines.append(f"{RED}QUALITY GATE: FAILED{RESET}")
         lines.append("=" * 60)
-
-        if self.errors:
-            lines.append("")
-            lines.append(f"ERRORS ({len(self.errors)}):")
-            for i, err in enumerate(self.errors, 1):
-                lines.append(f"  [{i}] {err}")
 
         if self.warnings:
             lines.append("")
