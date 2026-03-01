@@ -40,4 +40,4 @@ temp/
 # Build artifacts
 dist/
 build/
-evidence/compliance-reports/
+!evidence/compliance-reports/
