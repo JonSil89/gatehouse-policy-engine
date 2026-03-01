@@ -1,5 +1,4 @@
-
-name: "Infrastructure Change Quality Gate"
+name: "🏛️ Infrastructure Change Quality Gate"
 
 on:
   pull_request:
