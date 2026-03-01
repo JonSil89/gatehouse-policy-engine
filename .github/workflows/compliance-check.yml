@@ -89,7 +89,15 @@ jobs:
         run: |
           echo "## Gatehouse Quality Gate" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
+[ -f evidence/compliance-reports/report-*.md ] && cat evidence/compliance-reports/report-*.md >> "$GITHUB_STEP_SUMMARY"
+          
+          echo "" >> "$GITHUB_STEP_SUMMARY"
 
+          if [ "${{ steps.gate.outcome }}" = "success" ]; then
+            echo "### Status: ✅ PASSED" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### Status: ❌ FAILED" >> "$GITHUB_STEP_SUMMARY"
+          fi
           if [ "${{ steps.gate.outcome }}" = "success" ]; then
             echo "### PASSED" >> "$GITHUB_STEP_SUMMARY"
           else
