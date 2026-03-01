@@ -11,6 +11,7 @@
 
 
 [![🏛️ Gatehouse Compliance Check](https://github.com/JonSil89/gatehouse-policy-engine/actions/workflows/compliance-check.yml/badge.svg)](https://github.com/JonSil89/gatehouse-policy-engine/actions/workflows/compliance-check.yml)
+[![Infrastructure Change Quality Qate](https://github.com/JonSil89/gatehouse-policy-engine/actions/workflows/quality-gate.yml/badge.svg)](https://github.com/JonSil89/gatehouse-policy-engine/actions/workflows/quality-gate.yml)
 
 </div>
 
