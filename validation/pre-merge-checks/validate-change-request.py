@@ -90,16 +90,21 @@ class ValidationResult:
     def add_info(self, message):
         self.info.append(message)
 
-    @property
+   @property
     def passed(self):
         return len(self.errors) == 0
 
-     def summary(self):
+    def summary(self):
         GREEN = '\033[92m'
         RED = '\033[91m'
         RESET = '\033[0m'
 
         lines = []
+        lines.append("=" * 60)
+        if self.passed:
+            lines.append(f"{GREEN}QUALITY GATE: PASSED{RESET}")
+        else:
+            lines.append(f"{RED}QUALITY GATE: FAILED{RESET}")
         lines.append("=" * 60)
         if self.passed:
             lines.append(f"{GREEN}QUALITY GATE: PASSED{RESET}")
