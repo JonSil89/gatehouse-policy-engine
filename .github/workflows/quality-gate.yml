@@ -1,5 +1,5 @@
 
-name: " Infrastructure Change Quality Qate"
+name: "Infrastructure Change Quality Gate"
 
 on:
   pull_request:
@@ -128,28 +128,20 @@ jobs:
           path: evidence/compliance-reports/
           retention-days: 90
 
-    - name: "📋 Post summary"
+      - name: "📋 Post summary"
         if: always()
         run: |
-          echo "## 🏛️ Gatehouse Quality Gate Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Gatehouse Quality Gate" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
-          # Tärkeää: for-rivin ja echo-rivin pitää alkaa samasta sarakkeesta (10 välilyöntiä)
-          for f in evidence/compliance-reports/report-*.md; do
-            if [ -f "$f" ]; then
-              cat "$f" >> "$GITHUB_STEP_SUMMARY"
-              echo "" >> "$GITHUB_STEP_SUMMARY"
-            fi
-          done
-
           if [ "${{ steps.gate.outcome }}" = "success" ]; then
-            echo "### Status: ✅ PASSED" >> "$GITHUB_STEP_SUMMARY"
+            echo "### PASSED" >> "$GITHUB_STEP_SUMMARY"
           elif [ "${{ steps.gate.outcome }}" = "failure" ]; then
-            echo "### Status: ❌ FAILED - merge blocked" >> "$GITHUB_STEP_SUMMARY"
+            echo "### FAILED - merge blocked" >> "$GITHUB_STEP_SUMMARY"
           elif [ "${{ steps.detect.outputs.files }}" = "" ]; then
-            echo "### Status: ⚠️ SKIPPED - no change request files in PR" >> "$GITHUB_STEP_SUMMARY"
+            echo "### SKIPPED - no change request files in PR" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "### Status: ℹ️ No validation required" >> "$GITHUB_STEP_SUMMARY"
+            echo "### No validation required" >> "$GITHUB_STEP_SUMMARY"
           fi
 
           echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -161,7 +153,7 @@ jobs:
           echo "| Branch | \`${{ github.ref_name }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| ISO Controls | A.12.1.2 · A.14.2.2 · A.12.4.1 |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "> Audit reports retained 90 days under Artifacts." >> "$GITHUB_STEP_SUMMARY"
+          echo "Audit reports retained 90 days under Artifacts." >> "$GITHUB_STEP_SUMMARY"
 
   # ─────────────────────────────────────────────────────────────
   # JOB 2: Lint & Syntax
@@ -228,4 +220,27 @@ jobs:
               sys.exit(1)
           print('YAML syntax OK')
           "
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
