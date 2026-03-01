@@ -1,4 +1,4 @@
-name: Infrastructure Change Quality Gate
+name: 🏛️ Infrastructure Change Quality Gate
 
 on:
   pull_request:
@@ -9,137 +9,222 @@ on:
       - 'templates/**'
       - 'docs/**'
       - 'examples/**'
+      - 'validation/**'
 
-  # Allow manual trigger for demo purposes
+  push:
+    branches:
+      - main
+      - develop
+
   workflow_dispatch:
     inputs:
       change_request_file:
         description: 'Path to change request file (relative)'
-        required: true
-        default: 'examples/example-change-request.md'
+        required: false
+        default: 'examples/example-class2-cicd-pipeline-update.md'
 
 jobs:
-  validate-change-request:
-    name: Quality Gate - Validate Change Request
+  # ─────────────────────────────────────────────────────────────
+  # JOB 1: Policy Validation
+  # ─────────────────────────────────────────────────────────────
+  validate:
+    name: 🔍 Quality Gate — Policy Validation
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: 📥 Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Set up Python
+      - name: 🐍 Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Find change request files
-        id: find-files
+      - name: 🔍 Detect change request files
+        id: detect
         run: |
-          # For manual dispatch, use specified file
+          # Manual dispatch: use specified file
           if [ -n "${{ github.event.inputs.change_request_file }}" ]; then
             echo "files=${{ github.event.inputs.change_request_file }}" >> "$GITHUB_OUTPUT"
+            echo "source=manual" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          # For PRs, find modified change request files
-          FILES=$(git diff --name-only --diff-filter=ACMR \
-            "${{ github.event.pull_request.base.sha }}" \
-            "${{ github.event.pull_request.head.sha }}" \
-            -- 'examples/*.md' 'templates/*.md' | tr '\n' ' ')
+          # Pull request: find modified change request files
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            FILES=$(git diff --name-only --diff-filter=ACMR \
+              "${{ github.event.pull_request.base.sha }}" \
+              "${{ github.event.pull_request.head.sha }}" \
+              -- 'examples/*.md' 'templates/*.md' | tr '\n' ' ')
 
-          if [ -z "$FILES" ]; then
-            echo "No change request files found in this PR."
+            if [ -n "$FILES" ]; then
+              echo "files=$FILES" >> "$GITHUB_OUTPUT"
+              echo "source=pull_request" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
             echo "files=" >> "$GITHUB_OUTPUT"
-          else
-            echo "files=$FILES" >> "$GITHUB_OUTPUT"
+            echo "source=pull_request_no_files" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
-      - name: Run quality gate validation
-        if: steps.find-files.outputs.files != ''
+          # Push to main/develop: run smoke test against example
+          echo "files=examples/example-class2-cicd-pipeline-update.md" >> "$GITHUB_OUTPUT"
+          echo "source=push_smoke_test" >> "$GITHUB_OUTPUT"
+
+      - name: 🚀 Run Policy Engine
+        id: gate
+        if: steps.detect.outputs.files != ''
         run: |
           echo "=================================================="
-          echo "  Infrastructure Change Quality Gate"
+          echo "  🏛️  Gatehouse Policy Engine"
           echo "  ISO 27001 Aligned Validation"
+          echo "  Source: ${{ steps.detect.outputs.source }}"
           echo "=================================================="
           echo ""
 
-          VALIDATION_FAILED=0
+          FAILED=0
 
-          for file in ${{ steps.find-files.outputs.files }}; do
-            echo "Validating: $file"
+          for FILE in ${{ steps.detect.outputs.files }}; do
+            echo "Validating: $FILE"
             echo "--------------------------------------------------"
 
-            python ./validation/pre-merge-checks/validate-change-request.py "$file" || {
-              VALIDATION_FAILED=1
+            python3 validation/pre-merge-checks/validate-change-request.py "$FILE" || {
+              FAILED=1
               echo ""
-              echo "FAILED: $file did not pass quality gate."
+              echo "❌ FAILED: $FILE did not pass quality gate."
               echo ""
             }
           done
 
-          if [ "$VALIDATION_FAILED" -eq 1 ]; then
+          if [ "$FAILED" -eq 1 ]; then
             echo ""
             echo "=================================================="
-            echo "  QUALITY GATE: BLOCKED"
-            echo "  Fix the errors above and update the PR."
+            echo "  ❌ QUALITY GATE: BLOCKED"
+            echo "  Fix the errors above before merging."
             echo "=================================================="
             exit 1
           fi
 
           echo ""
           echo "=================================================="
-          echo "  QUALITY GATE: ALL CHECKS PASSED"
+          echo "  ✅ QUALITY GATE: ALL CHECKS PASSED"
           echo "=================================================="
 
-      - name: Post validation summary
-        if: always() && github.event_name == 'pull_request'
+      - name: ℹ️ No change request files detected
+        if: steps.detect.outputs.files == ''
         run: |
-          echo "## Quality Gate Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "No change request files detected in this PR."
+          echo "Skipping policy validation."
+
+      - name: 📦 Upload Audit Reports
+        if: always() && steps.detect.outputs.files != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: gatehouse-audit-reports-${{ github.run_number }}
+          path: evidence/compliance-reports/
+          retention-days: 90
+
+      - name: 📋 Post summary
+        if: always()
+        run: |
+          echo "## 🏛️ Gatehouse Quality Gate" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          if [ "${{ steps.find-files.outputs.files }}" = "" ]; then
-            echo "No change request files detected in this PR." >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${{ steps.gate.outcome }}" = "success" ]; then
+            echo "### ✅ PASSED" >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ steps.gate.outcome }}" = "failure" ]; then
+            echo "### ❌ FAILED — merge blocked" >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ steps.detect.outputs.files }}" = "" ]; then
+            echo "### ⏭️ SKIPPED — no change request files in PR" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "Validated files: \`${{ steps.find-files.outputs.files }}\`" >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "See job output for detailed results." >> "$GITHUB_STEP_SUMMARY"
+            echo "### ℹ️ No validation required" >> "$GITHUB_STEP_SUMMARY"
           fi
 
-  lint-check:
-    name: Quality Gate - Lint & Syntax
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| :--- | :--- |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Files | \`${{ steps.detect.outputs.files || 'none' }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Trigger | ${{ github.event_name }} (${{ steps.detect.outputs.source }}) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Run | [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Branch | \`${{ github.ref_name }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ISO Controls | A.12.1.2 · A.14.2.2 · A.12.4.1 |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "> Audit reports retained for 90 days under **Artifacts**." >> "$GITHUB_STEP_SUMMARY"
+
+  # ─────────────────────────────────────────────────────────────
+  # JOB 2: Lint & Syntax
+  # ─────────────────────────────────────────────────────────────
+  lint:
+    name: 🧹 Quality Gate — Lint & Syntax
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: 🐍 Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Check Python syntax
+      - name: ✅ Validate Python syntax
         run: |
-          python -m py_compile ./validation/pre-merge-checks/validate-change-request.py
+          python3 -m py_compile validation/pre-merge-checks/validate-change-request.py
           echo "Python syntax OK"
 
-      - name: Check for CRLF line endings
+      - name: ✅ Check line endings (LF only)
         run: |
-          CRLF_FILES=$(grep -rl $'\r' --include='*.md' --include='*.py' --include='*.yml' . || true)
-          if [ -n "$CRLF_FILES" ]; then
+          CRLF=$(grep -rl $'\r' \
+            --include='*.md' \
+            --include='*.py' \
+            --include='*.yml' . || true)
+          if [ -n "$CRLF" ]; then
             echo "ERROR: CRLF line endings detected in:"
-            echo "$CRLF_FILES"
+            echo "$CRLF"
             exit 1
           fi
           echo "Line endings OK (all LF)"
 
-      - name: Check for absolute paths
+      - name: ✅ Check for absolute paths
         run: |
-          ABS_PATHS=$(grep -rn '[A-Z]:\\' --include='*.md' --include='*.py' --include='*.yml' . || true)
-          UNIX_ABS=$(grep -rn '"/\(Users\|home\|etc\|var\)/' --include='*.md' --include='*.py' --include='*.yml' . || true)
-          if [ -n "$ABS_PATHS" ] || [ -n "$UNIX_ABS" ]; then
+          WIN=$(grep -rn '[A-Z]:\\' \
+            --include='*.md' --include='*.py' --include='*.yml' . || true)
+          UNIX=$(grep -rn '"/\(Users\|home\|etc\|var\|opt\|usr\)/' \
+            --include='*.md' --include='*.py' --include='*.yml' . || true)
+          if [ -n "$WIN" ] || [ -n "$UNIX" ]; then
             echo "ERROR: Absolute paths detected:"
-            echo "$ABS_PATHS"
-            echo "$UNIX_ABS"
+            [ -n "$WIN" ]  && echo "$WIN"
+            [ -n "$UNIX" ] && echo "$UNIX"
             exit 1
           fi
           echo "Path check OK (all relative)"
+
+      - name: ✅ Validate YAML syntax
+        run: |
+          python3 -c "
+          import yaml, glob, sys
+          errors = []
+          for f in glob.glob('.github/workflows/*.yml'):
+              try:
+                  yaml.safe_load(open(f))
+              except yaml.YAMLError as e:
+                  errors.append(f'{f}: {e}')
+          if errors:
+              print('YAML errors found:')
+              [print(e) for e in errors]
+              sys.exit(1)
+          print('YAML syntax OK')
+          "
+
+
+
+
+
+
+
+
+
+
