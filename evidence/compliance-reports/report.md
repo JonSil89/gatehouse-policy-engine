@@ -1,8 +1,8 @@
-# 🏛️ Gatehouse Report
-**Status:** ✅ PASSED
-**Time:** 2026-03-01 13:05:48 UTC
+# 🏛️ Gatehouse Audit Report
+**Status:** ✅ HYVÄKSYTTY  
+**Aikaleima:** 2026-03-01 13:09:38 UTC
 
-| Check | Status |
-| :--- | :--- |
-| Risk Class | ✅ |
-| Audit Trail | ✅ |
+| Tarkistuskohde | Havaittu arvo | Tila |
+| :--- | :--- | :--- |
+| Riskiluokka | 2 | ✅ |
+| Rollback-suunnitelma | Löytyy | ✅ |
