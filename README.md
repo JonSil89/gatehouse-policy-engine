@@ -105,6 +105,55 @@ flowchart LR
 5. **Merge** only after passing all gates
 
 ---
+## 🧪 Quick Demo — Run the Quality Gate Locally
+
+Test the policy engine in under 2 minutes on your local machine.
+
+### Prerequisites
+- Python 3.8+
+- Git
+- Bash or Git Bash (Windows)
+
+### Run it
+
+**1. Clone and enter the repo**
+```bash
+git clone https://github.com/JonSil89/gatehouse-policy-engine.git
+cd gatehouse-policy-engine
+```
+
+**2. Test a valid Class 2 change request (should PASS)**
+```bash
+python3 validation/pre-merge-checks/validate-change-request.py \
+  examples/example-class2-cicd-pipeline-update.md
+```
+
+Expected output: `QUALITY GATE: PASSED`
+
+**3. Test an invalid request (should FAIL)**
+```bash
+echo "# Empty request" > /tmp/test-fail.md
+python3 validation/pre-merge-checks/validate-change-request.py \
+  /tmp/test-fail.md
+```
+
+Expected output: `QUALITY GATE: FAILED`
+
+**4. Clean up**
+```bash
+cd / && rm -rf /tmp/gate_test
+```
+
+### What the validator checks
+- ✅ Required sections present (Perustiedot, Kuvaus, Vaikutusanalyysi)
+- ✅ All mandatory fields filled
+- ✅ Risk class defined and justified (1-3)
+- ✅ Rollback plan present (Class 2-3)
+- ✅ Sufficient approvers named (1-3 based on risk)
+- ✅ Test plan present (Class 2-3)
+- ✅ Freeze period checked (Class 3)
+- ✅ JSON output for CI/CD integration
+---
 
 ## 🌿 Branch Strategy
 
