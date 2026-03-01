@@ -10,7 +10,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8%2B-yellow)](validation/)
 
 
-
+[![🏛️ Gatehouse Compliance Check](https://github.com/JonSil89/gatehouse-policy-engine/actions/workflows/compliance-check.yml/badge.svg)](https://github.com/JonSil89/gatehouse-policy-engine/actions/workflows/compliance-check.yml)
 [![Infrastructure Change Quality Gate](https://github.com/JonSil89/gatehouse-policy-engine/actions/workflows/quality-gate-demo.yml/badge.svg)](https://github.com/JonSil89/gatehouse-policy-engine/actions/workflows/quality-gate-demo.yml)
 </div>
 
