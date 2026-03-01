@@ -9,6 +9,9 @@
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-yellow)](validation/)
 
+
+
+[![Infrastructure Change Quality Gate](https://github.com/JonSil89/gatehouse-policy-engine/actions/workflows/quality-gate-demo.yml/badge.svg)](https://github.com/JonSil89/gatehouse-policy-engine/actions/workflows/quality-gate-demo.yml)
 </div>
 
 ---
@@ -22,10 +25,17 @@ This repository implements a **formal change management process for critical inf
 ## 🏗️ Architecture
 
 
-Developer → PR + change request → Automated validation → Review → Deployment condition → Merge
-│ │ │
-GATE 1 GATE 2 GATE 3
-(CI/CD script) (review policy) (time windows)
+```mermaid
+flowchart LR
+    A[Developer] --> B[PR + Change Request]
+    B --> C{GATE 1\nAutomated Validation\nCI/CD Script}
+    C -->|Pass| D{GATE 2\nManual Review\nReview Policy}
+    C -->|Fail| X[❌ Rejected]
+    D -->|Approved| E{GATE 3\nDeployment Condition\nTime Windows}
+    D -->|Rejected| X
+    E -->|Clear| F[✅ Merge]
+    E -->|Blocked| Y[⏸ Postponed]
+```
 
 
 
@@ -59,59 +69,27 @@ GATE 1 GATE 2 GATE 3
 
 ---
 
-## 📁 Repository Structure
-.
-├── .github/workflows/ # CI/CD quality gate
-├── docs/ # Risk classification and change classification
-│ ├── risk-matrix.md
-│ └── change-classification.md
-├── templates/ # Change request and rollback templates
-│ ├── change-request-template.md
-│ └── rollback-plan-template.md
-├── validation/ # Automated validation script
-│ └── pre-merge-checks/
-│ └── validate-change-request.py
-└── examples/ # Pre-filled examples (in demo branch)
----
 
-## ⚠️ Risk Classes
 
-| Class | Level | Approvers | Examples |
-|:-----:|-------|-----------|----------|
-| **1** | Low | 1 | Documentation, minor configurations |
-| **2** | Medium | 2 | Infrastructure config, CI/CD changes, access management |
-| **3** | Critical | 3 + CISO | Network architecture, database migrations, security |
-
----
-
-## 🔒 ISO 27001 Mapping
-
-| Control | Description |
-|---------|-------------|
-| **A.12.1.2** | **Change Management** — Changes are documented, classified, and approved |
-| **A.14.2.2** | **System Change Control** — Formal, auditable change process |
-| **A.12.4.1** | **Event Logging** — Automated audit trail via CI/CD |
-
----
 
 ## 📁 Repository Structure
 
-=======
 
-
-.
-├── .github/workflows/ # CI/CD quality gate
-├── docs/ # Risk classification and change classification
-│ ├── risk-matrix.md
-│ └── change-classification.md
-├── templates/ # Change request and rollback templates
-│ ├── change-request-template.md
-│ └── rollback-plan-template.md
-├── validation/ # Automated validation script
-│ └── pre-merge-checks/
-│ └── validate-change-request.py
-└── examples/ # Pre-filled examples (in demo branch)
-
+---
+```
+. 
+├── .github/workflows/          # CI/CD quality gate
+├── docs/                       # Risk classification
+│   ├── risk-matrix.md
+│   └── change-classification.md
+├── templates/                  # Change request templates
+│   ├── change-request-template.md
+│   └── rollback-plan-template.md
+├── validation/                 # Automated validation script
+│   └── pre-merge-checks/
+│       └── validate-change-request.py
+└── examples/                   # Pre-filled examples
+```
 
 ---
 
@@ -126,6 +104,55 @@ GATE 1 GATE 2 GATE 3
 4. **Request review** according to risk level
 5. **Merge** only after passing all gates
 
+---
+## 🧪 Quick Demo — Run the Quality Gate Locally
+
+Test the policy engine in under 2 minutes on your local machine.
+
+### Prerequisites
+- Python 3.8+
+- Git
+- Bash or Git Bash (Windows)
+
+### Run it
+
+**1. Clone and enter the repo**
+```bash
+git clone https://github.com/JonSil89/gatehouse-policy-engine.git
+cd gatehouse-policy-engine
+```
+
+**2. Test a valid Class 2 change request (should PASS)**
+```bash
+python3 validation/pre-merge-checks/validate-change-request.py \
+  examples/example-class2-cicd-pipeline-update.md
+```
+
+Expected output: `QUALITY GATE: PASSED`
+
+**3. Test an invalid request (should FAIL)**
+```bash
+echo "# Empty request" > /tmp/test-fail.md
+python3 validation/pre-merge-checks/validate-change-request.py \
+  /tmp/test-fail.md
+```
+
+Expected output: `QUALITY GATE: FAILED`
+
+**4. Clean up**
+```bash
+cd / && rm -rf /tmp/gate_test
+```
+
+### What the validator checks
+- ✅ Required sections present (Perustiedot, Kuvaus, Vaikutusanalyysi)
+- ✅ All mandatory fields filled
+- ✅ Risk class defined and justified (1-3)
+- ✅ Rollback plan present (Class 2-3)
+- ✅ Sufficient approvers named (1-3 based on risk)
+- ✅ Test plan present (Class 2-3)
+- ✅ Freeze period checked (Class 3)
+- ✅ JSON output for CI/CD integration
 ---
 
 ## 🌿 Branch Strategy
