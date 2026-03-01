@@ -1,6 +1,6 @@
 yaml
 
-name: 🏛️ Gatehouse Compliance Check
+name: ''🏛️ Gatehouse Compliance Check''
 
 on:
   push:
