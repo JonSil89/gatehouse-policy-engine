@@ -34,3 +34,7 @@ Vaikuttaa kehitystiimiin sisäisesti, ei tuotantopalveluihin suoraan.
 
 **Hyväksyjä 1:** Jonne Silvennoinen
 **Hyväksyjä 2:** DevOps-Lead
+
+**Riskiperustelu:**
+CI/CD pipeline -muutos vaikuttaa build- ja deploy-prosessiin, mutta ei muuta tuotantoympäristön arkkitehtuuria eikä käsittele arkaluonteista dataa. Muutos on rajattu, testattu ja palautettavissa rollback-suunnitelman mukaisesti.
+
