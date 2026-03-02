@@ -18,7 +18,7 @@ Muutoksen tavoitteena on parantaa tietoturvaa ja rajata palveluiden välistä li
 
 ---
 
-## Riskiperustelu:
+**Riskiperustelu:**
 
 Muutos kohdistuu tuotantoverkon liikenteenohjaukseen ja palomuurisääntöihin. Virheellinen konfiguraatio voi estää kriittisten palveluiden välisen liikenteen ja aiheuttaa palvelukatkon.  
 Koska muutos vaikuttaa infrastruktuurin turvallisuusrakenteeseen ja tuotantoympäristön saatavuuteen, se luokitellaan Riskiluokka 3 mukaiseksi korkeaksi riskiksi.
@@ -55,3 +55,4 @@ Koska muutos vaikuttaa infrastruktuurin turvallisuusrakenteeseen ja tuotantoymp�
 
 **Hyväksyjä 1:** DevOps Lead  
 **Hyväksyjä 2:** CISO  
+**Hyväksyjä 3:** CTO
