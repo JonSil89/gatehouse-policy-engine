@@ -144,7 +144,7 @@ python3 validation/pre-merge-checks/validate-change-request.py \
 
 Expected output: `QUALITY GATE: FAILED`
 
-**4. Clean up**
+**5. Clean up**
 ```bash
 cd / && rm -rf /tmp/gate_test
 ```
