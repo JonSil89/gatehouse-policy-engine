@@ -147,7 +147,7 @@ def main():
     ci_output = {
         "passed": result.passed,
         "risk_class": rc,
-        "compliance_score": 100 - (len(result.errors) * 20),
+        "compliance_score": max(0, 100 - min(len(result.errors) * 20, 80),
         "errors": result.errors,
         "warnings": result.warnings,
         "timestamp": timestamp,
@@ -163,5 +163,3 @@ if __name__ == "__main__":
     main()
 
 
-if __name__ == "__main__":
-    main()
