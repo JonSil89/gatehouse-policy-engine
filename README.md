@@ -132,8 +132,9 @@ python3 validation/pre-merge-checks/validate-change-request.py \
 ```bash
 python3 validation/pre-merge-checks/validate-change-request.py \
  examples/example-class3-production-network-change.md
-Expected output: `QUALITY GATE: PASSED`
 ```
+Expected output: `QUALITY GATE: PASSED`
+
 **4. Test an invalid request (should FAIL)**
 ```bash
 echo "# Empty request" > /tmp/test-fail.md
