@@ -6,7 +6,7 @@
 **Pyytäjä:** Jonne Silvennoinen  
 **Päivämäärä:** 2026-03-15  
 **Riskiluokka:** 3  
-**Kohdeympäristö:** Production  
+**Kohdeympäristö:** Prod  
 **Ehdotettu toteutusaika:** 2026-03-18  
 
 ---
