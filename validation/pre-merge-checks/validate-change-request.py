@@ -145,14 +145,14 @@ def main():
     report_path = generate_audit_report(result, rc, file_path, timestamp)
 
     ci_output = {
-        "passed": result.passed,
-        "risk_class": rc,
-        "compliance_score": max(0, 100 - min(len(result.errors) * 20, 80),
-        "errors": result.errors,
-        "warnings": result.warnings,
-        "timestamp": timestamp,
-        "file": file_path,
-    }
+    "passed": result.passed,
+    "risk_class": rc,
+    "compliance_score": max(0, 100 - min(len(result.errors) * 20, 80)),
+    "errors": result.errors,
+    "warnings": result.warnings,
+    "timestamp": timestamp,
+    "file": file_path,
+}
 
     print(json.dumps(ci_output, indent=2, ensure_ascii=False))
 
