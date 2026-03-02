@@ -128,9 +128,12 @@ cd gatehouse-policy-engine
 python3 validation/pre-merge-checks/validate-change-request.py \
   examples/example-class2-cicd-pipeline-update.md
 ```
-
+**3. Test a valid Class 3 change request (should PASS)**
+```bash
+python3 validation/pre-merge-checks/validate-change-request.py \
+ examples/example-class3-production-network-change.md
 Expected output: `QUALITY GATE: PASSED`
-
+```
 **3. Test an invalid request (should FAIL)**
 ```bash
 echo "# Empty request" > /tmp/test-fail.md
