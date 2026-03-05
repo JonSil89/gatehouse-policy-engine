@@ -154,10 +154,9 @@ jobs:
           fi
           echo "Path check OK"
 
-    - name: "✅ Validate YAML syntax"
-  run: |
-    pip install pyyaml -q
-    python3 - << 'EOF'
+      - name: "✅ Validate YAML syntax"
+        run: |
+          python3 - << 'EOF'
 import yaml, glob, sys
 errors = []
 for f in glob.glob('.github/workflows/*.yml'):
