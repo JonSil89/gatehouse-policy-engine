@@ -35,6 +35,13 @@ Vaikuttaa kehitystiimiin sisäisesti, ei tuotantopalveluihin suoraan.
 **Hyväksyjä 1:** Jonne Silvennoinen
 **Hyväksyjä 2:** DevOps-Lead
 
+**Hyväksyjä 1:** Matti Meikäläinen
+**Hyväksyjä 2:** Team Lead
+
+## Palautussuunnitelma
+
+Jos muutos epäonnistuu, palautetaan edellinen versio ajamalla rollback-skripti...
+
 **Riskiperustelu:**
 CI/CD pipeline -muutos vaikuttaa build- ja deploy-prosessiin, mutta ei muuta tuotantoympäristön arkkitehtuuria eikä käsittele arkaluonteista dataa. Muutos on rajattu, testattu ja palautettavissa rollback-suunnitelman mukaisesti.
 
