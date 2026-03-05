@@ -1,0 +1,8 @@
+{
+  "type": "object",
+  "required": [
+    "title",
+    "risk_class",
+    "rollback_plan"
+  ]
+}
