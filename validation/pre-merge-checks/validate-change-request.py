@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 """
 Gatehouse Policy Engine - Enterprise edition
-- Dynamic config
-- Role-based approvers
-- Enhanced path scanning
-- Full audit trail
-- CI/CD-friendly output
+ISO 27001-aligned infrastructure change validation.
+No external dependencies beyond pyyaml.
 """
 
 import re
@@ -18,7 +15,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
-
 
 # ========================
 # CONFIG LOAD
@@ -61,7 +57,6 @@ else:
     config = default_config
     logging.info("Using default config")
 
-
 # ========================
 # VALIDATION RESULT CLASS
 # ========================
@@ -77,59 +72,54 @@ class ValidationResult:
         self.risk_escalated = False
 
     def error(self, msg):
-        logging.error(msg)
         self.errors.append(msg)
+        print(f"Error:  {msg}", file=sys.stderr)
 
     def warning(self, msg):
-        logging.warning(msg)
         self.warnings.append(msg)
+        print(f"Warning: {msg}", file=sys.stderr)
 
     def info_msg(self, msg):
-        logging.info(msg)
         self.info.append(msg)
 
     def trigger_control(self, key):
-        if key in config["iso_control_map"]:
-            self.triggered_controls.add(config["iso_control_map"][key])
+        label = config.get("iso_control_map", {}).get(key, key)
+        self.triggered_controls.add(label)
 
     @property
     def passed(self):
         return len(self.errors) == 0
 
+# ========================
+# VALIDATORS
+# ========================
 
-# ========================
-# CORE VALIDATIONS
-# ========================
+def extract_risk_class(content, result):
+    m = re.search(r"\*\*Riskiluokka:\*\*\s+([123])", content)
+    if not m:
+        result.error("Riskiluokka puuttuu tai on virheellinen.")
+        return 1
+    return int(m.group(1))
+
 
 def validate_sections(content, result):
     for section in config["required_sections"]:
-        if section not in content:
+        if not re.search(rf"##\s+{section}", content):
             result.error(f"Puuttuva osio: {section}")
 
 
 def validate_fields(content, result):
-    for field in config["required_fields"]:
-        if not re.search(field, content):
-            result.error(f"Pakollinen kenttä puuttuu: {field}")
-
-
-def extract_risk_class(content, result):
-    match = re.search(r"\*\*Riskiluokka:\*\*\s*(\d)", content)
-    if not match:
-        result.error("Riskiluokkaa ei tunnistettu")
-        return 1
-    rc = int(match.group(1))
-    if rc not in [1, 2, 3]:
-        result.error("Virheellinen riskiluokka")
-    return rc
+    for pattern in config["required_fields"]:
+        if not re.search(pattern, content):
+            result.error(f"Puuttuva kenttä: {pattern}")
 
 
 def validate_environment(content, result):
-    match = re.search(r"\*\*Kohdeympäristö:\*\*\s*(\w+)", content)
-    if not match:
-        result.warning("Kohdeympäristöä ei määritelty")
+    m = re.search(r"\*\*Kohdeympäristö:\*\*\s+(\S+)", content)
+    if not m:
+        result.warning("Kohdeympäristö ei tunnistettu.")
         return None
-    env = match.group(1).lower()
+    env = m.group(1).lower()
     if env not in config["allowed_environments"]:
         result.warning(f"Tuntematon ympäristö: {env}")
     return env
@@ -137,14 +127,16 @@ def validate_environment(content, result):
 
 def escalate_risk_if_needed(env, rc, result):
     if env == "prod" and rc < 3:
-        result.warning("Riskiluokka nostettu production-ympäristön vuoksi")
+        result.info_msg(f"Riskiluokka korotettu {rc} → 3 (tuotantoympäristö)")
         result.risk_escalated = True
         return 3
+    result.risk_escalated = False
     return rc
 
 
 def validate_approvers(content, rc, result):
-    approvers = re.findall(r"\*\*Hyväksyjä:\*\*", content)
+    # Hakee Hyväksyjä 1, Hyväksyjä 2 jne — ei pelkkää Hyväksyjä
+    approvers = re.findall(r"\*\*Hyväksyjä\s+\d+:\*\*", content)
     required = config["min_approvers"].get(rc, 1)
     if len(approvers) < required:
         result.error(f"Riskiluokka {rc} vaatii vähintään {required} hyväksyjää")
@@ -152,14 +144,17 @@ def validate_approvers(content, rc, result):
 
 
 def validate_rollback(content, rc, result):
-    if rc >= 2 and "Rollback" not in content:
-        result.error("Rollback-suunnitelma puuttuu")
+    # Hyväksyy sekä "Palautussuunnitelma" että "Rollback"
+    has_rollback = "Palautussuunnitelma" in content or "Rollback" in content
+    if rc >= 2 and not has_rollback:
+        result.error("Palautussuunnitelma puuttuu (lisää 'Palautussuunnitelma' tai 'Rollback')")
     result.trigger_control("rollback")
 
 
 def validate_test_plan(content, rc, result):
-    if rc >= 2 and "Testaus" not in content:
-        result.warning("Testisuunnitelma puuttuu")
+    has_test = "Testaussuunnitelma" in content or "Testaus" in content
+    if rc >= 2 and not has_test:
+        result.warning("Testaussuunnitelma puuttuu")
     result.trigger_control("test_plan")
 
 
@@ -167,7 +162,6 @@ def validate_paths(content, result):
     for pattern in config["sensitive_path_patterns"]:
         if re.search(pattern, content):
             result.warning(f"Mahdollinen sensitiivinen polku havaittu: {pattern}")
-
 
 # ========================
 # SCORING & HASHING
@@ -185,7 +179,6 @@ def calculate_file_hash(file_path):
             sha256.update(chunk)
     return sha256.hexdigest()
 
-
 # ========================
 # REPORT GENERATION
 # ========================
@@ -193,8 +186,9 @@ def calculate_file_hash(file_path):
 def generate_audit_report(result, file_path, timestamp):
     Path("evidence/compliance-reports").mkdir(parents=True, exist_ok=True)
     file_hash = calculate_file_hash(file_path)
-    report_name = f"report-{file_hash[:16]}"
-    base_path = Path("evidence/compliance-reports") / report_name
+    status_str = "PASSED" if result.passed else "FAILED"
+    base_path = Path("evidence/compliance-reports") / f"report-{status_str}-{file_hash[:12]}"
+
     score = calculate_score(result)
     json_data = {
         "passed": result.passed,
@@ -207,16 +201,36 @@ def generate_audit_report(result, file_path, timestamp):
         "timestamp": timestamp,
         "file": file_path,
         "file_hash": file_hash,
-        "iso_controls_triggered": list(result.triggered_controls),
+        "iso_controls_triggered": sorted(list(result.triggered_controls)),
     }
+
     with open(f"{base_path}.json", "w", encoding="utf-8") as f:
         json.dump(json_data, f, indent=2, ensure_ascii=False)
-    with open(f"{base_path}.md", "w", encoding="utf-8") as f:
-        f.write("# Gatehouse Audit Report\n\n")
-        for k, v in json_data.items():
-            f.write(f"{k}: {v}\n\n")
-    return str(base_path)
 
+    status_icon = "✅ PASSED" if result.passed else "❌ FAILED"
+    with open(f"{base_path}.md", "w", encoding="utf-8") as f:
+        f.write("# 🏛️ Gatehouse Audit Report\n\n")
+        f.write(f"**Status:** {status_icon}  \n")
+        f.write(f"**File:** `{file_path}`  \n")
+        f.write(f"**Risk class:** {result.final_risk_class}  \n")
+        f.write(f"**Compliance score:** {score}  \n")
+        f.write(f"**Timestamp:** {timestamp}  \n")
+        f.write(f"**File hash:** `{file_hash}`\n\n")
+        f.write("| Check | Count |\n")
+        f.write("| :--- | :--- |\n")
+        f.write(f"| Errors | {len(result.errors)} |\n")
+        f.write(f"| Warnings | {len(result.warnings)} |\n")
+        f.write(f"| ISO controls triggered | {len(result.triggered_controls)} |\n")
+        if result.errors:
+            f.write("\n### ❌ Errors\n")
+            for err in result.errors:
+                f.write(f"- {err}\n")
+        if result.warnings:
+            f.write("\n### ⚠️ Warnings\n")
+            for w in result.warnings:
+                f.write(f"- {w}\n")
+
+    return str(base_path)
 
 # ========================
 # MAIN
@@ -246,7 +260,6 @@ def main():
     if env:
         rc = escalate_risk_if_needed(env, rc, result)
     result.final_risk_class = rc
-
     result.trigger_control("risk_assessment")
 
     validate_rollback(content, rc, result)
@@ -269,6 +282,10 @@ def main():
     }
     print(json.dumps(ci_output, indent=2, ensure_ascii=False))
     sys.exit(0 if result.passed else 1)
+
+
+if __name__ == "__main__":
+    main()
 
 
 if __name__ == "__main__":
