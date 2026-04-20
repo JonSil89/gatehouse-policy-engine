@@ -1,18 +1,22 @@
-# Muutospyyntö: Pieni konfiguraatiopäivitys
-
 ## Perustiedot
-* **Muutoksen nimi:** Lisätään uusi ympäristömuuttuja
-* **Pyytäjä:** Jonne
-* **Päivämäärä:** 2026-03-01
-* **Riskiluokka:** 1
-* **Kohdeympäristö:** Development
+| Kenttä | Arvo |
+| :--- | :--- |
+| Muutoksen nimi | Testimuutos |
+| Pyytäjä | Jonne |
+| Päivämäärä | 2026-04-20 |
+| Riskiluokka | 1 |
+| Kohdeympäristö | Dev |
 
 ## Kuvaus
-Lisätään API_TIMEOUT muuttuja staging-ympäristöön.
+Testaus.
 
 ## Vaikutusanalyysi
-Pieni muutos, ei vaikuta tuotantoon.
+Ei vaikutusta.
 
-## Hyväksyntä
-* **Hyväksyjät:** 1 
-@tiimin-vetäjä
+## Palautussuunnitelma
+Nollaus.
+
+## Hyväksynnät
+- [x] @hyvaksyja1
+- [x] @hyvaksyja2
+EOF
