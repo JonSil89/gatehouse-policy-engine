@@ -1,291 +1,398 @@
 #!/usr/bin/env python3
 """
-Gatehouse Policy Engine - Enterprise edition
-ISO 27001-aligned infrastructure change validation.
-No external dependencies beyond pyyaml.
+Gatehouse Policy Engine — Infrastructure Change Quality Gate
+============================================================
+
+Validates infrastructure change requests against ISO 27001-aligned controls.
+
+Checks:
+  - Required sections and fields
+  - Risk classification (1-3) with justification
+  - Rollback plan (mandatory for Class 2-3)
+  - Test plan (mandatory for Class 2-3)
+  - Approver count (risk-class based)
+  - CISO approval (mandatory for Class 3)
+  - Freeze period (mandatory for Class 3)
+  - Absolute path detection
+
+Output:
+  - Colored terminal summary
+  - JSON output for CI/CD integration
+  - Audit report saved to evidence/compliance-reports/
+
+Exit codes:
+  0 = PASSED
+  1 = FAILED (validation errors)
+  2 = ERROR  (script/file error)
+
+ISO 27001 Controls:
+  A.12.1.2 — Change Management
+  A.14.2.2 — System Change Control
+  A.12.4.1 — Event Logging (audit trail)
+
+No external dependencies — Python stdlib only.
+POSIX-compatible: relative paths, LF line endings.
 """
 
 import re
 import sys
+import os
 import json
-import yaml
-import hashlib
-import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
-logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 
-# ========================
-# CONFIG LOAD
-# ========================
+# ─── ANSI Colors ───────────────────────────────────────────────────────────────
 
-CONFIG_FILE = "validation/config.yaml"
+GREEN  = '\033[92m'
+RED    = '\033[91m'
+YELLOW = '\033[93m'
+CYAN   = '\033[96m'
+BOLD   = '\033[1m'
+RESET  = '\033[0m'
 
-default_config = {
-    "min_approvers": {1: 1, 2: 2, 3: 3},
-    "required_sections": ["Perustiedot", "Kuvaus", "Vaikutusanalyysi"],
-    "required_fields": [
-        r"\*\*Muutoksen nimi:\*\*",
-        r"\*\*Pyytäjä:\*\*",
-        r"\*\*Päivämäärä:\*\*",
-        r"\*\*Riskiluokka:\*\*",
-        r"\*\*Kohdeympäristö:\*\*",
-        r"\*\*Riskiperustelu:\*\*",
-    ],
-    "allowed_environments": ["dev", "test", "staging", "prod"],
-    "sensitive_path_patterns": [
-        r"/etc/",
-        r"/var/",
-        r"/root/",
-        r"[A-Za-z]:\\"
-    ],
-    "iso_control_map": {
-        "rollback": "A.12.1.2",
-        "test_plan": "A.14.2.2",
-        "logging": "A.12.4.1",
-        "approval": "A.12.1.2",
-        "risk_assessment": "A.6.1.2",
-    }
+
+# ─── Configuration ─────────────────────────────────────────────────────────────
+
+REQUIRED_SECTIONS = [
+    "Perustiedot",
+    "Kuvaus",
+    "Vaikutusanalyysi",
+]
+
+REQUIRED_FIELDS = {
+    "Muutoksen nimi": r"\*\*Muutoksen nimi:\*\*\s+\S",
+    "Pyytäjä":        r"\*\*Pyytäjä:\*\*\s+\S",
+    "Päivämäärä":     r"\*\*Päivämäärä:\*\*\s+\d{4}-\d{2}-\d{2}",
+    "Riskiluokka":    r"\*\*Riskiluokka:\*\*\s+[123]",
+    "Kohdeympäristö": r"\*\*Kohdeympäristö:\*\*\s+(dev|staging|production)",
 }
 
-if Path(CONFIG_FILE).exists():
-    with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-        logging.info("Config loaded from YAML")
-else:
-    config = default_config
-    logging.info("Using default config")
+RISK_CLASS_PATTERN      = re.compile(r"\*\*Riskiluokka:\*\*\s+([123])")
+APPROVER_PATTERN        = re.compile(r"\*\*Hyväksyjä\s+\d+:\*\*\s+(?!\[Nimi\])(\S+)")
+ROLLBACK_SECTION        = re.compile(r"##\s+Palautussuunnitelma", re.IGNORECASE)
+ROLLBACK_STRATEGY       = re.compile(
+    r"\*\*Palautusstrategia:\*\*\s+(?!\[)"
+    r"(git revert|konfiguraation palautus|snapshot restore|blue-green switch|\S+)"
+)
+ROLLBACK_TESTED         = re.compile(r"\*\*Onko palautus testattu\?\*\*\s+Kyllä", re.IGNORECASE)
+TEST_SECTION            = re.compile(r"##\s+Testaussuunnitelma", re.IGNORECASE)
+TEST_ENV                = re.compile(r"\*\*Testausympäristö:\*\*\s+(?!\[)(dev|staging)", re.IGNORECASE)
+TEST_ENV_STAGING        = re.compile(r"\*\*Testausympäristö:\*\*\s+staging", re.IGNORECASE)
+FREEZE_CHECK            = re.compile(r"\*\*Freeze-periodi tarkistettu:\*\*\s+Kyllä", re.IGNORECASE)
+PROPOSED_DATE           = re.compile(r"\*\*Ehdotettu toteutusaika:\*\*\s+(\d{4}-\d{2}-\d{2})")
+RISK_JUSTIFICATION      = re.compile(
+    r"###\s+Riskiluokan perustelu\s*\n+(?!\[Miksi)(\S+)", re.MULTILINE
+)
+CISO_PATTERN            = re.compile(r"CISO", re.IGNORECASE)
 
-# ========================
-# VALIDATION RESULT CLASS
-# ========================
+MIN_APPROVERS = {1: 1, 2: 2, 3: 3}
+
+# Add freeze periods here when needed:
+# ("2026-12-20", "2027-01-05"),  # Year-end freeze
+FREEZE_PERIODS = []
+
+
+# ─── Validation Result ─────────────────────────────────────────────────────────
 
 class ValidationResult:
     def __init__(self):
-        self.errors = []
+        self.errors   = []
         self.warnings = []
-        self.info = []
-        self.triggered_controls = set()
-        self.original_risk_class = None
-        self.final_risk_class = None
-        self.risk_escalated = False
+        self.info     = []
 
-    def error(self, msg):
-        self.errors.append(msg)
-        print(f"Error:  {msg}", file=sys.stderr)
-
-    def warning(self, msg):
-        self.warnings.append(msg)
-        print(f"Warning: {msg}", file=sys.stderr)
-
-    def info_msg(self, msg):
-        self.info.append(msg)
-
-    def trigger_control(self, key):
-        label = config.get("iso_control_map", {}).get(key, key)
-        self.triggered_controls.add(label)
+    def error(self, msg):   self.errors.append(msg)
+    def warning(self, msg): self.warnings.append(msg)
+    def info_msg(self, msg): self.info.append(msg)
 
     @property
     def passed(self):
         return len(self.errors) == 0
 
-# ========================
-# VALIDATORS
-# ========================
+    def summary(self):
+        lines = []
+        sep = "=" * 60
 
-def extract_risk_class(content, result):
-    m = re.search(r"\*\*Riskiluokka:\*\*\s+([123])", content)
-    if not m:
-        result.error("Riskiluokka puuttuu tai on virheellinen.")
-        return 1
-    return int(m.group(1))
+        lines.append(sep)
+        if self.passed:
+            lines.append(f"{GREEN}{BOLD}QUALITY GATE: PASSED{RESET}")
+        else:
+            lines.append(f"{RED}{BOLD}QUALITY GATE: FAILED{RESET}")
+        lines.append(sep)
 
+        if self.errors:
+            lines.append(f"\n{RED}ERRORS ({len(self.errors)}):{RESET}")
+            for i, e in enumerate(self.errors, 1):
+                lines.append(f"  {RED}[{i}]{RESET} {e}")
+
+        if self.warnings:
+            lines.append(f"\n{YELLOW}WARNINGS ({len(self.warnings)}):{RESET}")
+            for i, w in enumerate(self.warnings, 1):
+                lines.append(f"  {YELLOW}[{i}]{RESET} {w}")
+
+        if self.info:
+            lines.append(f"\n{CYAN}INFO:{RESET}")
+            for msg in self.info:
+                lines.append(f"  - {msg}")
+
+        lines.append(f"\n{sep}")
+        return "\n".join(lines)
+
+
+# ─── Validation Functions ──────────────────────────────────────────────────────
 
 def validate_sections(content, result):
-    for section in config["required_sections"]:
-        if not re.search(rf"##\s+{section}", content):
-            result.error(f"Puuttuva osio: {section}")
+    for section in REQUIRED_SECTIONS:
+        pattern = re.compile(rf"^##\s+{re.escape(section)}", re.MULTILINE)
+        if not pattern.search(content):
+            result.error(f"Pakollinen osio puuttuu: '{section}'")
+        else:
+            result.info_msg(f"Osio löytyi: '{section}'")
 
 
 def validate_fields(content, result):
-    for pattern in config["required_fields"]:
-        if not re.search(pattern, content):
-            result.error(f"Puuttuva kenttä: {pattern}")
+    for name, pattern_str in REQUIRED_FIELDS.items():
+        if not re.search(pattern_str, content):
+            result.error(f"Pakollinen kenttä puuttuu tai ei ole täytetty: '{name}'")
+        else:
+            result.info_msg(f"Kenttä täytetty: '{name}'")
 
 
-def validate_environment(content, result):
-    m = re.search(r"\*\*Kohdeympäristö:\*\*\s+(\S+)", content)
-    if not m:
-        result.warning("Kohdeympäristö ei tunnistettu.")
+def extract_risk_class(content, result):
+    match = RISK_CLASS_PATTERN.search(content)
+    if not match:
+        result.error("Riskiluokka puuttuu tai on virheellinen (1, 2 tai 3)")
         return None
-    env = m.group(1).lower()
-    if env not in config["allowed_environments"]:
-        result.warning(f"Tuntematon ympäristö: {env}")
-    return env
+    rc = int(match.group(1))
+    result.info_msg(f"Riskiluokka: {rc}")
 
+    if not RISK_JUSTIFICATION.search(content):
+        result.error("Riskiluokan perustelu puuttuu tai on placeholder-arvo")
 
-def escalate_risk_if_needed(env, rc, result):
-    if env == "prod" and rc < 3:
-        result.info_msg(f"Riskiluokka korotettu {rc} → 3 (tuotantoympäristö)")
-        result.risk_escalated = True
-        return 3
-    result.risk_escalated = False
     return rc
 
 
-def validate_approvers(content, rc, result):
-    # Hakee Hyväksyjä 1, Hyväksyjä 2 jne — ei pelkkää Hyväksyjä
-    approvers = re.findall(r"\*\*Hyväksyjä\s+\d+:\*\*", content)
-    required = config["min_approvers"].get(rc, 1)
-    if len(approvers) < required:
-        result.error(f"Riskiluokka {rc} vaatii vähintään {required} hyväksyjää")
-    result.trigger_control("approval")
-
-
 def validate_rollback(content, rc, result):
-    # Hyväksyy sekä "Palautussuunnitelma" että "Rollback"
-    has_rollback = "Palautussuunnitelma" in content or "Rollback" in content
-    if rc >= 2 and not has_rollback:
-        result.error("Palautussuunnitelma puuttuu (lisää 'Palautussuunnitelma' tai 'Rollback')")
-    result.trigger_control("rollback")
+    if rc is None or rc < 2:
+        if rc == 1:
+            result.info_msg("Luokka 1: Rollback-suunnitelma suositeltu mutta ei pakollinen")
+        return
+
+    if not ROLLBACK_SECTION.search(content):
+        result.error(f"Luokka {rc}: Palautussuunnitelma-osio puuttuu (pakollinen)")
+        return
+
+    if not ROLLBACK_STRATEGY.search(content):
+        result.error(f"Luokka {rc}: Palautusstrategia ei ole määritelty")
+
+    if rc == 3 and not ROLLBACK_TESTED.search(content):
+        result.error("Luokka 3: Palautussuunnitelmaa ei ole merkitty testatuksi (pakollinen)")
+
+
+def validate_approvers(content, rc, result):
+    if rc is None:
+        return
+
+    approvers = APPROVER_PATTERN.findall(content)
+    required  = MIN_APPROVERS.get(rc, 1)
+
+    if len(approvers) < required:
+        result.error(
+            f"Luokka {rc}: Vaaditaan vähintään {required} hyväksyjää, "
+            f"löytyi {len(approvers)}"
+        )
+    else:
+        result.info_msg(f"Hyväksyjät: {len(approvers)}/{required} (OK)")
+
+    # Class 3: verify CISO is among approvers
+    if rc == 3:
+        approver_block = re.findall(
+            r"\*\*Hyväksyjä\s+\d+:\*\*.*", content, re.IGNORECASE
+        )
+        ciso_found = any(CISO_PATTERN.search(line) for line in approver_block)
+        if not ciso_found:
+            result.error("Luokka 3: CISO:n hyväksyntä puuttuu (pakollinen)")
+        else:
+            result.info_msg("CISO-hyväksyntä: löytyi")
 
 
 def validate_test_plan(content, rc, result):
-    has_test = "Testaussuunnitelma" in content or "Testaus" in content
-    if rc >= 2 and not has_test:
-        result.warning("Testaussuunnitelma puuttuu")
-    result.trigger_control("test_plan")
+    if rc is None or rc < 2:
+        return
+
+    if not TEST_SECTION.search(content):
+        result.error(f"Luokka {rc}: Testaussuunnitelma-osio puuttuu (pakollinen)")
+        return
+
+    if not TEST_ENV.search(content):
+        result.warning(f"Luokka {rc}: Testausympäristöä ei ole määritelty")
+
+    if rc == 3 and not TEST_ENV_STAGING.search(content):
+        result.error("Luokka 3: Testaus pitää suorittaa staging-ympäristössä")
+
+
+def validate_freeze(content, rc, result):
+    if rc is None or rc < 3:
+        return
+
+    if not FREEZE_CHECK.search(content):
+        result.error("Luokka 3: Freeze-periodi ei ole tarkistettu (pakollinen)")
+        return
+
+    date_match = PROPOSED_DATE.search(content)
+    if date_match:
+        proposed = date_match.group(1)
+        for start, end in FREEZE_PERIODS:
+            if start <= proposed <= end:
+                result.error(
+                    f"Luokka 3: Ehdotettu päivä {proposed} osuu "
+                    f"freeze-periodille ({start} – {end})"
+                )
+                return
+        result.info_msg(f"Freeze-tarkistus OK: {proposed} ei osu freeze-periodille")
 
 
 def validate_paths(content, result):
-    for pattern in config["sensitive_path_patterns"]:
+    checks = [
+        (r'[A-Z]:\\', "Windows absoluuttinen polku"),
+        (r'(?<!\[)/(?:Users|home|etc|var|opt|usr)/', "Unix absoluuttinen polku"),
+    ]
+    for pattern, desc in checks:
         if re.search(pattern, content):
-            result.warning(f"Mahdollinen sensitiivinen polku havaittu: {pattern}")
-
-# ========================
-# SCORING & HASHING
-# ========================
-
-def calculate_score(result):
-    score = 100 - (len(result.errors) * 20) - (len(result.warnings) * 5)
-    return max(score, 0)
+            result.warning(f"Mahdollinen absoluuttinen polku havaittu ({desc})")
 
 
-def calculate_file_hash(file_path):
-    sha256 = hashlib.sha256()
-    with open(file_path, "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            sha256.update(chunk)
-    return sha256.hexdigest()
+# ─── Audit Report Generator ────────────────────────────────────────────────────
 
-# ========================
-# REPORT GENERATION
-# ========================
+def generate_audit_report(result, rc, file_path, timestamp):
+    folder = Path("evidence/compliance-reports")
+    folder.mkdir(parents=True, exist_ok=True)
 
-def generate_audit_report(result, file_path, timestamp):
-    Path("evidence/compliance-reports").mkdir(parents=True, exist_ok=True)
-    file_hash = calculate_file_hash(file_path)
-    status_str = "PASSED" if result.passed else "FAILED"
-    base_path = Path("evidence/compliance-reports") / f"report-{status_str}-{file_hash[:12]}"
+    status    = "PASSED" if result.passed else "FAILED"
+    ts_short  = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    base_name = folder / f"report-{status}-{ts_short}"
 
-    score = calculate_score(result)
+    # Markdown report
+    status_icon = "✅" if result.passed else "❌"
+    md_lines = [
+        "# 🏛️ Gatehouse Audit Report",
+        "",
+        f"**Status:** {status_icon} {status}  ",
+        f"**File:** `{file_path}`  ",
+        f"**Timestamp:** {timestamp}  ",
+        f"**Risk Class:** {rc if rc else 'N/A'}",
+        "",
+        "## Checks",
+        "",
+        "| Result | Message |",
+        "| :---: | :--- |",
+    ]
+
+    for msg in result.info:
+        md_lines.append(f"| ✅ | {msg} |")
+    for msg in result.warnings:
+        md_lines.append(f"| ⚠️ | {msg} |")
+    for msg in result.errors:
+        md_lines.append(f"| ❌ | {msg} |")
+
+    if result.errors:
+        md_lines += [
+            "",
+            "## ⚠️ Critical Findings",
+            "",
+        ]
+        for e in result.errors:
+            md_lines.append(f"- {e}")
+
+    md_lines += [
+        "",
+        "---",
+        f"*Generated by Gatehouse Policy Engine | ISO 27001 A.12.4.1*",
+    ]
+
+    with open(f"{base_name}.md", "w", encoding="utf-8") as f:
+        f.write("\n".join(md_lines))
+
+    # JSON report
     json_data = {
-        "passed": result.passed,
-        "original_risk_class": result.original_risk_class,
-        "final_risk_class": result.final_risk_class,
-        "risk_escalated": result.risk_escalated,
-        "compliance_score": score,
-        "errors": result.errors,
-        "warnings": result.warnings,
-        "timestamp": timestamp,
-        "file": file_path,
-        "file_hash": file_hash,
-        "iso_controls_triggered": sorted(list(result.triggered_controls)),
+        "audit_status": status,
+        "timestamp":    timestamp,
+        "file":         file_path,
+        "risk_class":   rc,
+        "passed":       result.passed,
+        "errors":       result.errors,
+        "warnings":     result.warnings,
+        "info":         result.info,
+        "iso_controls": ["A.12.1.2", "A.14.2.2", "A.12.4.1"],
     }
 
-    with open(f"{base_path}.json", "w", encoding="utf-8") as f:
+    with open(f"{base_name}.json", "w", encoding="utf-8") as f:
         json.dump(json_data, f, indent=2, ensure_ascii=False)
 
-    status_icon = "✅ PASSED" if result.passed else "❌ FAILED"
-    with open(f"{base_path}.md", "w", encoding="utf-8") as f:
-        f.write("# 🏛️ Gatehouse Audit Report\n\n")
-        f.write(f"**Status:** {status_icon}  \n")
-        f.write(f"**File:** `{file_path}`  \n")
-        f.write(f"**Risk class:** {result.final_risk_class}  \n")
-        f.write(f"**Compliance score:** {score}  \n")
-        f.write(f"**Timestamp:** {timestamp}  \n")
-        f.write(f"**File hash:** `{file_hash}`\n\n")
-        f.write("| Check | Count |\n")
-        f.write("| :--- | :--- |\n")
-        f.write(f"| Errors | {len(result.errors)} |\n")
-        f.write(f"| Warnings | {len(result.warnings)} |\n")
-        f.write(f"| ISO controls triggered | {len(result.triggered_controls)} |\n")
-        if result.errors:
-            f.write("\n### ❌ Errors\n")
-            for err in result.errors:
-                f.write(f"- {err}\n")
-        if result.warnings:
-            f.write("\n### ⚠️ Warnings\n")
-            for w in result.warnings:
-                f.write(f"- {w}\n")
+    return str(base_name)
 
-    return str(base_path)
 
-# ========================
-# MAIN
-# ========================
+# ─── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: validate-change-request.py <file.md>")
+        print(
+            f"Usage: python {os.path.basename(__file__)} <change-request.md>",
+            file=sys.stderr
+        )
+        print("Validates an infrastructure change request against ISO 27001 quality gate.", file=sys.stderr)
         sys.exit(2)
 
     file_path = sys.argv[1]
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    result = ValidationResult()
+    result    = ValidationResult()
 
+    result.info_msg(f"Validointi aloitettu: {timestamp}")
+    result.info_msg(f"Tiedosto: {file_path}")
+
+    # Read file
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
+    except FileNotFoundError:
+        print(f"{RED}ERROR:{RESET} Tiedostoa ei löydy: {file_path}", file=sys.stderr)
+        sys.exit(2)
     except Exception as e:
-        logging.error(f"File error: {e}")
+        print(f"{RED}ERROR:{RESET} Tiedoston luku epäonnistui: {e}", file=sys.stderr)
         sys.exit(2)
 
+    # Run all validations
     validate_sections(content, result)
     validate_fields(content, result)
     rc = extract_risk_class(content, result)
-    result.original_risk_class = rc
-    env = validate_environment(content, result)
-    if env:
-        rc = escalate_risk_if_needed(env, rc, result)
-    result.final_risk_class = rc
-    result.trigger_control("risk_assessment")
-
     validate_rollback(content, rc, result)
     validate_approvers(content, rc, result)
+    validate_freeze(content, rc, result)
     validate_test_plan(content, rc, result)
     validate_paths(content, result)
 
-    generate_audit_report(result, file_path, timestamp)
+    # Terminal output
+    print(result.summary())
 
+    # Generate audit report
+    report_path = generate_audit_report(result, rc, file_path, timestamp)
+    print(f"\n{CYAN}Audit report:{RESET} {report_path}.md")
+    print(f"{CYAN}JSON report: {RESET} {report_path}.json")
+
+    # CI/CD JSON output
     ci_output = {
-        "passed": result.passed,
-        "original_risk_class": result.original_risk_class,
-        "final_risk_class": result.final_risk_class,
-        "risk_escalated": result.risk_escalated,
-        "compliance_score": calculate_score(result),
-        "errors": result.errors,
-        "warnings": result.warnings,
-        "timestamp": timestamp,
-        "file": file_path,
+        "passed":     result.passed,
+        "risk_class": rc,
+        "errors":     result.errors,
+        "warnings":   result.warnings,
+        "timestamp":  timestamp,
+        "file":       file_path,
     }
+    print(f"\n{'─' * 60}")
+    print("JSON Output (for CI/CD):")
     print(json.dumps(ci_output, indent=2, ensure_ascii=False))
+
     sys.exit(0 if result.passed else 1)
-
-
-if __name__ == "__main__":
-    main()
 
 
 if __name__ == "__main__":
