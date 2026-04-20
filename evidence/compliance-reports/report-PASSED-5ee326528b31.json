@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "original_risk_class": 2,
+  "final_risk_class": 2,
+  "risk_escalated": false,
+  "compliance_score": 100,
+  "errors": [],
+  "warnings": [],
+  "timestamp": "2026-04-20T16:46:58Z",
+  "file": "examples/example-class2-cicd-pipeline-update.md",
+  "file_hash": "5ee326528b31b426843512e17320c900f2ab7bfb9987964d0f7d43358ee7d568",
+  "iso_controls_triggered": [
+    "A.12.1.2",
+    "A.14.2.2",
+    "A.6.1.2"
+  ]
+}
