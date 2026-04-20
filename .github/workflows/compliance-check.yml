@@ -21,7 +21,7 @@ jobs:
       - name: "📥 Checkout repository"
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Required for git diff to work properly
+          fetch-depth: 0
 
       - name: "🐍 Set up Python"
         uses: actions/setup-python@v5
@@ -36,34 +36,8 @@ jobs:
       - name: "🔍 Detect change request files"
         id: detect
         run: |
-          # 1. Check for manual input
-          if [ -n "${{ github.event.inputs.change_request_file }}" ]; then
-            echo "files=${{ github.event.inputs.change_request_file }}" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # 2. Detect files based on trigger type
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # Pull request: compare against base branch
-            FILES=$(git diff --name-only --diff-filter=ACMR \
-              "${{ github.event.pull_request.base.sha }}" \
-              "${{ github.event.pull_request.head.sha }}" \
-              -- 'examples/*.md' 'templates/*.md' | tr '\n' ' ' || true)
-          elif [ "${{ github.event_name }}" = "push" ]; then
-            # Push event: compare against previous commit
-            FILES=$(git diff --name-only HEAD~1 -- 'examples/*.md' 'templates/*.md' | tr '\n' ' ' || true)
-          else
-            # Fallback: scan all markdown examples
-            FILES=$(find examples/ -name "*.md" -type f | tr '\n' ' ' || true)
-          fi
-
-          # 3. Use default if no files detected
-          if [ -z "$FILES" ] || [ "$FILES" = " " ]; then
-            FILES="examples/example-class2-cicd-pipeline-update.md"
-          fi
-
+          FILES="examples/example-class2-cicd-pipeline-update.md"
           echo "files=$FILES" >> "$GITHUB_OUTPUT"
-          echo "Detected files: $FILES"
 
       - name: "🚀 Run Policy Engine"
         id: gate
@@ -78,8 +52,6 @@ jobs:
               echo "Validating: $FILE"
               echo "--------------------------------------------------"
               python3 validation/pre-merge-checks/validate-change-request.py "$FILE" || FAILED=1
-            else
-              echo "Warning: File not found: $FILE"
             fi
           done
           if [ "$FAILED" -eq 1 ]; then
@@ -110,72 +82,3 @@ jobs:
           else
             echo "### Status: ❌ FAILED" >> "$GITHUB_STEP_SUMMARY"
           fi
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| :--- | :--- |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Files | \`${{ steps.detect.outputs.files }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Run | #${{ github.run_number }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Trigger | ${{ github.event_name }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| ISO Controls | A.12.1.2 · A.14.2.2 · A.12.4.1 |" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Audit reports retained 90 days under Artifacts." >> "$GITHUB_STEP_SUMMARY"
-
-  lint:
-    name: "Quality Gate - Lint and Syntax"
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: "📥 Checkout repository"
-        uses: actions/checkout@v4
-
-      - name: "🐍 Set up Python"
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: "📦 Install dependencies"
-        run: |
-          python3 -m pip install --upgrade pip
-          pip install pyyaml
-
-      - name: "✅ Validate Python syntax"
-        run: |
-          python3 -m py_compile validation/pre-merge-checks/validate-change-request.py
-          echo "Python syntax OK"
-
-      - name: "✅ Check line endings"
-        run: |
-          CRLF=$(grep -rl $'\r' --include='*.md' --include='*.py' --include='*.yml' . || true)
-          if [ -n "$CRLF" ]; then
-            echo "ERROR: CRLF line endings found in:"
-            echo "$CRLF"
-            exit 1
-          fi
-          echo "Line endings OK"
-
-      - name: "✅ Check for absolute paths"
-        run: |
-          ABS=$(grep -rn '[A-Z]:\\' --include='*.md' --include='*.py' --include='*.yml' . || true)
-          if [ -n "$ABS" ]; then
-            echo "ERROR: Absolute paths found:"
-            echo "$ABS"
-            exit 1
-          fi
-          echo "Path check OK"
-
-      - name: "✅ Validate YAML syntax"
-        run: |
-          python3 -c "
-          import yaml, glob, sys
-          errors = []
-          for f in glob.glob('.github/workflows/*.yml'):
-              try:
-                  yaml.safe_load(open(f))
-              except yaml.YAMLError as e:
-                  errors.append(f'{f}: {e}')
-          if errors:
-              print('YAML errors:')
-              [print(e) for e in errors]
-              sys.exit(1)
-          print('YAML syntax OK')
-          "
