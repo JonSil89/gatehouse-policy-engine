@@ -20,6 +20,8 @@ jobs:
     steps:
       - name: "📥 Checkout repository"
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required for git diff to work properly
 
       - name: "🐍 Set up Python"
         uses: actions/setup-python@v5
@@ -34,21 +36,34 @@ jobs:
       - name: "🔍 Detect change request files"
         id: detect
         run: |
+          # 1. Check for manual input
           if [ -n "${{ github.event.inputs.change_request_file }}" ]; then
             echo "files=${{ github.event.inputs.change_request_file }}" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+
+          # 2. Detect files based on trigger type
           if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # Pull request: compare against base branch
             FILES=$(git diff --name-only --diff-filter=ACMR \
               "${{ github.event.pull_request.base.sha }}" \
               "${{ github.event.pull_request.head.sha }}" \
-              -- 'examples/*.md' 'templates/*.md' | tr '\n' ' ')
-            if [ -n "$FILES" ]; then
-              echo "files=$FILES" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
+              -- 'examples/*.md' 'templates/*.md' | tr '\n' ' ' || true)
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            # Push event: compare against previous commit
+            FILES=$(git diff --name-only HEAD~1 -- 'examples/*.md' 'templates/*.md' | tr '\n' ' ' || true)
+          else
+            # Fallback: scan all markdown examples
+            FILES=$(find examples/ -name "*.md" -type f | tr '\n' ' ' || true)
           fi
-          echo "files=examples/example-class2-cicd-pipeline-update.md" >> "$GITHUB_OUTPUT"
+
+          # 3. Use default if no files detected
+          if [ -z "$FILES" ] || [ "$FILES" = " " ]; then
+            FILES="examples/example-class2-cicd-pipeline-update.md"
+          fi
+
+          echo "files=$FILES" >> "$GITHUB_OUTPUT"
+          echo "Detected files: $FILES"
 
       - name: "🚀 Run Policy Engine"
         id: gate
@@ -59,9 +74,13 @@ jobs:
           echo "=================================================="
           FAILED=0
           for FILE in ${{ steps.detect.outputs.files }}; do
-            echo "Validating: $FILE"
-            echo "--------------------------------------------------"
-            python3 validation/pre-merge-checks/validate-change-request.py "$FILE" || FAILED=1
+            if [ -f "$FILE" ]; then
+              echo "Validating: $FILE"
+              echo "--------------------------------------------------"
+              python3 validation/pre-merge-checks/validate-change-request.py "$FILE" || FAILED=1
+            else
+              echo "Warning: File not found: $FILE"
+            fi
           done
           if [ "$FAILED" -eq 1 ]; then
             echo "=================================================="
