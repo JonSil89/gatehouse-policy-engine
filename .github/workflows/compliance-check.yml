@@ -6,11 +6,6 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
-    inputs:
-      change_request_file:
-        description: 'Path to change request file'
-        required: false
-        default: 'examples/example-class2-cicd-pipeline-update.md'
 
 jobs:
   validate:
@@ -20,8 +15,6 @@ jobs:
     steps:
       - name: "📥 Checkout repository"
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: "🐍 Set up Python"
         uses: actions/setup-python@v5
@@ -33,52 +26,14 @@ jobs:
           python3 -m pip install --upgrade pip
           pip install pyyaml
 
-      - name: "🔍 Detect change request files"
-        id: detect
-        run: |
-          FILES="examples/example-class2-cicd-pipeline-update.md"
-          echo "files=$FILES" >> "$GITHUB_OUTPUT"
-
       - name: "🚀 Run Policy Engine"
-        id: gate
         run: |
-          echo "=================================================="
-          echo "  Gatehouse Policy Engine"
-          echo "  ISO 27001 Aligned Validation"
-          echo "=================================================="
-          FAILED=0
-          for FILE in ${{ steps.detect.outputs.files }}; do
-            if [ -f "$FILE" ]; then
-              echo "Validating: $FILE"
-              echo "--------------------------------------------------"
-              python3 validation/pre-merge-checks/validate-change-request.py "$FILE" || FAILED=1
-            fi
-          done
-          if [ "$FAILED" -eq 1 ]; then
-            echo "=================================================="
-            echo "  QUALITY GATE: BLOCKED"
-            echo "=================================================="
-            exit 1
-          fi
-          echo "=================================================="
-          echo "  QUALITY GATE: ALL CHECKS PASSED"
-          echo "=================================================="
+          python3 validation/pre-merge-checks/validate-change-request.py examples/example-class2-cicd-pipeline-update.md
 
       - name: "📦 Upload Audit Reports"
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: gatehouse-audit-reports-${{ github.run_number }}
+          name: gatehouse-audit-reports
           path: evidence/compliance-reports/
           retention-days: 90
-
-      - name: "📋 Post summary"
-        if: always()
-        run: |
-          echo "## Gatehouse Quality Gate" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          if [ "${{ steps.gate.outcome }}" = "success" ]; then
-            echo "### Status: ✅ PASSED" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "### Status: ❌ FAILED" >> "$GITHUB_STEP_SUMMARY"
-          fi
