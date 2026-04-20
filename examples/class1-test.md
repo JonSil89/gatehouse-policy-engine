@@ -14,4 +14,4 @@ Lisätään API_TIMEOUT muuttuja staging-ympäristöön.
 Pieni muutos, ei vaikuta tuotantoon.
 
 ## Hyväksyntä
-* **Hyväksyjät:** @tiimin-vetäjä
+* **Hyväksyjät:** 1 @tiimin-vetäjä
