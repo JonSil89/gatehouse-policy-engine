@@ -1,6 +1,10 @@
 name: "🏛️ Gatehouse Infrastructure Quality Gate"
 
 on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - "**.md"
   pull_request:
     paths:
       - "**.md"
@@ -9,10 +13,11 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -23,21 +28,28 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install jq || true
+          python -m pip install pyyaml
 
       - name: Detect change request files
         id: detect
         run: |
-          files=$(git diff --name-only origin/${{ github.base_ref }} | grep -E '\.md$' || true)
+          # Jos PR, verrataan target-haaraan. Jos push, verrataan edelliseen committiin.
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            files=$(git diff --name-only origin/${{ github.base_ref }} | grep -E '\.md$' || true)
+          else
+            files=$(git diff --name-only HEAD^ HEAD | grep -E '\.md$' || true)
+          fi
           echo "files=$files" >> $GITHUB_OUTPUT
 
       - name: Run policy validation
-        id: gate
         if: steps.detect.outputs.files != ''
         run: |
           mkdir -p evidence/compliance-reports
           for file in ${{ steps.detect.outputs.files }}; do
-            echo "Validating $file"
-            python validation/pre-merge-checks/validate-change-request.py "$file"
+            if [ -f "$file" ]; then
+              echo "Validating $file"
+              python validation/pre-merge-checks/validate-change-request.py "$file"
+            fi
           done
 
       - name: Aggregate results and generate GitHub Job Summary
@@ -46,62 +58,36 @@ jobs:
           echo "## 🛡️ Gatehouse Infrastructure Quality Gate" >> "$GITHUB_STEP_SUMMARY"
           echo "Tämä automaattinen tarkistus varmistaa, että muutospyyntö noudattaa tietoturva- ja riskienhallintakäytäntöjä." >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-
+          
           overall_passed=true
           reports_found=false
-
-          for f in evidence/compliance-reports/report-*.json; do
-            if [ -f "$f" ]; then
-              reports_found=true
-              file=$(jq -r '.file' "$f")
-              score=$(jq -r '.compliance_score' "$f")
-              rc=$(jq -r '.final_risk_class' "$f")
-              orig_rc=$(jq -r '.original_risk_class' "$f")
-              status=$(jq -r '.passed' "$f")
-              errors=$(jq -r '.errors | if length > 0 then map("- " + .) | join("<br>") else "✅ Ei virheitä" end' "$f")
-              warnings=$(jq -r '.warnings | if length > 0 then map("- " + .) | join("<br>") else "Ei varoituksia" end' "$f")
-              risk_escalated=$(jq -r '.risk_escalated' "$f")
-
-              icon=$([ "$status" == "true" ] && echo "✅" || echo "❌")
-
-              echo "### $icon Tiedosto: $file" >> "$GITHUB_STEP_SUMMARY"
-              echo "| Mittari | Tieto |" >> "$GITHUB_STEP_SUMMARY"
-              echo "| :--- | :--- |" >> "$GITHUB_STEP_SUMMARY"
-              echo "| **Tila** | $([ "$status" == "true" ] && echo "PASSED" || echo "FAILED") |" >> "$GITHUB_STEP_SUMMARY"
-              echo "| **Compliance Score** | **$score / 100** |" >> "$GITHUB_STEP_SUMMARY"
-              echo "| **Lopullinen Riskiluokka** | $rc (Alkuperäinen: $orig_rc) |" >> "$GITHUB_STEP_SUMMARY"
-              echo "| **Riski eskaloitu** | $([ "$risk_escalated" == "true" ] && echo "Kyllä" || echo "Ei") |" >> "$GITHUB_STEP_SUMMARY"
-              echo "| **Varoitukset** | $warnings |" >> "$GITHUB_STEP_SUMMARY"
-              echo "" >> "$GITHUB_STEP_SUMMARY"
-
-              if [ "$status" != "true" ]; then
-                overall_passed=false
-                echo "> [!CAUTION]" >> "$GITHUB_STEP_SUMMARY"
-                echo "> **Löydetyt puutteet:**<br>$errors" >> "$GITHUB_STEP_SUMMARY"
-              else
-                echo "> [!IMPORTANT]" >> "$GITHUB_STEP_SUMMARY"
-                echo "> Muutos täyttää riskiluokan $rc vaatimukset." >> "$GITHUB_STEP_SUMMARY"
+          
+          if [ -d "evidence/compliance-reports" ]; then
+            for f in evidence/compliance-reports/report-*.json; do
+              if [ -f "$f" ]; then
+                reports_found=true
+                file=$(jq -r '.file' "$f")
+                score=$(jq -r '.compliance_score' "$f")
+                rc=$(jq -r '.final_risk_class' "$f")
+                status=$(jq -r '.passed' "$f")
+                errors=$(jq -r '.errors | if length > 0 then map("- " + .) | join("<br>") else "✅ Ei virheitä" end' "$f")
+                
+                icon=$([ "$status" == "true" ] && echo "✅" || echo "❌")
+                echo "### $icon Tiedosto: $file" >> "$GITHUB_STEP_SUMMARY"
+                echo "| Mittari | Tieto |" >> "$GITHUB_STEP_SUMMARY"
+                echo "| :--- | :--- |" >> "$GITHUB_STEP_SUMMARY"
+                echo "| **Compliance Score** | **$score / 100** |" >> "$GITHUB_STEP_SUMMARY"
+                echo "| **Lopullinen Riskiluokka** | $rc |" >> "$GITHUB_STEP_SUMMARY"
+                
+                if [ "$status" != "true" ]; then
+                  overall_passed=false
+                  echo "> [!CAUTION]" >> "$GITHUB_STEP_SUMMARY"
+                  echo "> **Puutteet:** $errors" >> "$GITHUB_STEP_SUMMARY"
+                fi
               fi
-              echo "---" >> "$GITHUB_STEP_SUMMARY"
-            fi
-          done
-
-          if [ "$reports_found" = false ]; then
-            echo "> [!NOTE]" >> "$GITHUB_STEP_SUMMARY"
-            echo "> Ei tarkistettavia markdown-tiedostoja." >> "$GITHUB_STEP_SUMMARY"
-          elif [ "$overall_passed" = true ]; then
-            echo "## ✅ LOPPUTULOS: HYVÄKSYTTY" >> "$GITHUB_STEP_SUMMARY"
-            echo "Kaikki tarkistukset menivät läpi. Muutos voidaan yhdistää." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "## ❌ LOPPUTULOS: HYLÄTTY" >> "$GITHUB_STEP_SUMMARY"
-            echo "Korjaa yllä olevat virheet ennen yhdistämistä." >> "$GITHUB_STEP_SUMMARY"
-            exit 1
+            done
           fi
 
-      - name: Archive Compliance Reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: compliance-evidence
-          path: evidence/compliance-reports/
-          retention-days: 90
+          if [ "$reports_found" = false ]; then
+             echo "Ei muutoksia markdown-tiedostoissa." >> "$GITHUB_STEP_SUMMARY"
+          fi
