@@ -1,0 +1,21 @@
+# compliance/config/iso27001-controls.yaml
+controls:
+  - id: "A.12.1.2"
+    name: "Muutoksenhallinta"
+    status: "IMPLEMENTED"
+    evidence: "validation/pre-merge-checks/validate-change-request.py"
+    
+  - id: "A.14.2.2"
+    name: "Järjestelmämuutosten hallinta"
+    status: "IMPLEMENTED"
+    evidence: ".github/workflows/compliance-check.yml"
+    
+  - id: "A.12.4.1"
+    name: "Tapahtumaloki"
+    status: "IMPLEMENTED"
+    evidence: "evidence/compliance-reports/"
+    
+  - id: "A.6.1.2"
+    name: "Tehtävien eriyttäminen"
+    status: "IMPLEMENTED"
+    evidence: ".github/CODEOWNERS"
