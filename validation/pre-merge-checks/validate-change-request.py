@@ -15,6 +15,8 @@ Checks:
   - Freeze period (mandatory for Class 3)
   - Absolute path detection
   - SHA-256 file hash (tamper-evident audit trail)
+  - Unique report ID per file (no overwrites)
+  - Signature (non-repudiation)
 
 Output:
   - Colored terminal summary
@@ -40,8 +42,11 @@ import sys
 import os
 import json
 import hashlib
+import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+POLICY_VERSION = "v2.1.0"
 
 
 # ─── ANSI Colors ───────────────────────────────────────────────────────────────
@@ -77,7 +82,9 @@ ROLLBACK_STRATEGY  = re.compile(r"\*\*Palautusstrategia:\*\*\s+(?!\[)\S")
 TEST_PLAN_SECTION  = re.compile(r"##\s+Testaussuunnitelma", re.IGNORECASE)
 FREEZE_PATTERN     = re.compile(r"\*\*Jäädytysikkuna:\*\*\s+(?!Ei)\S")
 CISO_PATTERN       = re.compile(r"\*\*CISO-hyväksyntä:\*\*\s+(?!\[)\S")
-ABS_PATH_PATTERN   = re.compile(r"(/[a-zA-Z0-9_\-./]{3,}|[A-Z]:\\[^\s]+)")
+
+# Fixed: only matches real filesystem paths like /usr/bin/python, not /CD-pipeline
+ABS_PATH_PATTERN   = re.compile(r"\b/(?:[A-Za-z0-9._-]+/)+[A-Za-z0-9._-]+")
 
 KNOWN_ENVIRONMENTS = {"dev", "staging", "production"}
 
@@ -134,7 +141,6 @@ def validate_fields(content, result):
         else:
             result.info_msg(f"Kenttä täytetty: '{field}'")
 
-    # Environment check
     env_match = re.search(r"\*\*Kohdeympäristö:\*\*\s+(\S+)", content)
     if env_match:
         env = env_match.group(1).lower()
@@ -167,8 +173,6 @@ def validate_approvers(content, rc, result):
     if rc is None:
         return
     approvers = APPROVER_PATTERN.findall(content)
-
-    # Also count checkbox-style approvers: - [x] @name
     checkbox_approvers = re.findall(r"-\s+\[x\]\s+@\S+", content, re.IGNORECASE)
     total = max(len(approvers), len(checkbox_approvers))
 
@@ -202,20 +206,15 @@ def validate_test_plan(content, rc, result):
 
 def validate_paths(content, result):
     matches = ABS_PATH_PATTERN.findall(content)
-    safe = {"/dev/null", "/tmp", "/etc", "/usr", "/var"}
+    safe_prefixes = ("/dev/", "/tmp/", "/etc/", "/usr/", "/var/")
     for path in matches:
-        if not any(path.startswith(s) for s in safe):
+        if not any(path.startswith(s) for s in safe_prefixes):
             result.warn(f"Mahdollinen absoluuttinen polku havaittu: {path}")
 
 
-# ─── SHA-256 Hash ──────────────────────────────────────────────────────────────
+# ─── SHA-256 & Signature ───────────────────────────────────────────────────────
 
 def calculate_sha256(file_path):
-    """Laskee tiedoston digitaalisen sormenjäljen (SHA-256).
-    
-    Tamper-evident: jos tiedostoa muutetaan raportin generoinnin jälkeen,
-    hash ei täsmää. Tarkista: sha256sum <tiedosto>
-    """
     sha256_hash = hashlib.sha256()
     with open(file_path, "rb") as f:
         for byte_block in iter(lambda: f.read(4096), b""):
@@ -223,28 +222,31 @@ def calculate_sha256(file_path):
     return sha256_hash.hexdigest()
 
 
+def generate_report_id(file_path):
+    base = Path(file_path).stem
+    ts = int(time.time() * 1000)
+    return f"{base}-{ts}"
+
+
+def generate_signature(run_id, file_hash):
+    raw = f"{run_id}{file_hash}".encode()
+    return "sig_" + hashlib.sha256(raw).hexdigest()[:16]
+
+
 # ─── Audit Report ──────────────────────────────────────────────────────────────
 
-def generate_audit_report(result, rc, file_path, timestamp):
+def generate_audit_report(result, rc, file_path, timestamp, file_hash, signature, run_id):
     folder = Path("evidence/compliance-reports")
     folder.mkdir(parents=True, exist_ok=True)
 
-    # Calculate compliance score
-    total_checks = len(result.errors) + len(result.info)
+    total_checks  = len(result.errors) + len(result.info)
     passed_checks = len(result.info)
-    score = int((passed_checks / total_checks * 100)) if total_checks > 0 else 0
-
-    # Calculate file hash
-    try:
-        file_hash = calculate_sha256(file_path)
-    except Exception:
-        file_hash = "unavailable"
+    score         = int((passed_checks / total_checks * 100)) if total_checks > 0 else 0
 
     status    = "PASSED" if result.passed else "FAILED"
-    ts_short  = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    base_name = folder / f"report-{status}-{ts_short}"
+    report_id = generate_report_id(file_path)
+    base_name = folder / f"report-{status}-{report_id}"
 
-    # ── Markdown report ──
     status_icon = "✅" if result.passed else "❌"
     md_lines = [
         "# 🏛️ Gatehouse Audit Report",
@@ -254,7 +256,10 @@ def generate_audit_report(result, rc, file_path, timestamp):
         f"**Risk class:** {rc if rc else 'N/A'}  ",
         f"**Compliance score:** {score}  ",
         f"**Timestamp:** {timestamp}  ",
-        f"**File hash:** `{file_hash}`",
+        f"**Policy version:** {POLICY_VERSION}  ",
+        f"**Run ID:** {run_id}  ",
+        f"**File hash:** `{file_hash}`  ",
+        f"**Signature:** `{signature}`",
         "",
         "| Check | Count |",
         "| :--- | :--- |",
@@ -276,11 +281,7 @@ def generate_audit_report(result, rc, file_path, timestamp):
         md_lines.append(f"| ❌ | {msg} |")
 
     if result.errors:
-        md_lines += [
-            "",
-            "## ⚠️ Critical Findings",
-            "",
-        ]
+        md_lines += ["", "## ⚠️ Critical Findings", ""]
         for e in result.errors:
             md_lines.append(f"- {e}")
 
@@ -294,24 +295,26 @@ def generate_audit_report(result, rc, file_path, timestamp):
         f"Tarkista peukalointi: `sha256sum {file_path}`",
         "",
         "---",
-        f"*Generated by Gatehouse Policy Engine | ISO 27001 A.12.4.1*",
+        f"*Generated by Gatehouse Policy Engine {POLICY_VERSION} | ISO 27001 A.12.4.1*",
     ]
 
     with open(f"{base_name}.md", "w", encoding="utf-8") as f:
         f.write("\n".join(md_lines))
 
-    # ── JSON report ──
     json_data = {
-        "audit_status":        status,
-        "timestamp":           timestamp,
-        "file":                file_path,
-        "file_hash":           file_hash,
-        "risk_class":          rc,
-        "compliance_score":    score,
-        "passed":              result.passed,
-        "errors":              result.errors,
-        "warnings":            result.warnings,
-        "info":                result.info,
+        "audit_status":           status,
+        "timestamp":              timestamp,
+        "file":                   file_path,
+        "file_hash":              file_hash,
+        "signature":              signature,
+        "policy_version":         POLICY_VERSION,
+        "run_id":                 run_id,
+        "risk_class":             rc,
+        "compliance_score":       score,
+        "passed":                 result.passed,
+        "errors":                 result.errors,
+        "warnings":               result.warnings,
+        "info":                   result.info,
         "iso_controls_triggered": ["A.12.1.2", "A.14.2.2", "A.12.4.1"],
     }
 
@@ -325,11 +328,7 @@ def generate_audit_report(result, rc, file_path, timestamp):
 
 def main():
     if len(sys.argv) < 2:
-        print(
-            f"Usage: python {os.path.basename(__file__)} <change-request.md>",
-            file=sys.stderr
-        )
-        print("Validates an infrastructure change request against ISO 27001 quality gate.", file=sys.stderr)
+        print(f"Usage: python {os.path.basename(__file__)} <change-request.md>", file=sys.stderr)
         sys.exit(2)
 
     file_path = sys.argv[1]
@@ -339,7 +338,6 @@ def main():
     result.info_msg(f"Validointi aloitettu: {timestamp}")
     result.info_msg(f"Tiedosto: {file_path}")
 
-    # Read file
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
@@ -350,7 +348,6 @@ def main():
         print(f"{RED}ERROR:{RESET} Tiedoston luku epäonnistui: {e}", file=sys.stderr)
         sys.exit(2)
 
-    # Run all validations
     validate_sections(content, result)
     validate_fields(content, result)
     rc = extract_risk_class(content, result)
@@ -360,27 +357,38 @@ def main():
     validate_test_plan(content, rc, result)
     validate_paths(content, result)
 
-    # Terminal output
     print(result.summary())
 
-    # Generate audit report
-    report_path = generate_audit_report(result, rc, file_path, timestamp)
+    try:
+        file_hash = calculate_sha256(file_path)
+    except Exception:
+        file_hash = "unavailable"
+
+    run_id    = os.getenv("GITHUB_RUN_ID", "local")
+    signature = generate_signature(run_id, file_hash)
+
+    report_path = generate_audit_report(result, rc, file_path, timestamp, file_hash, signature, run_id)
     print(f"\n{CYAN}Audit report:{RESET} {report_path}.md")
     print(f"{CYAN}JSON report: {RESET} {report_path}.json")
 
-    # CI/CD JSON output
+    score = int((len(result.info) / max(len(result.info) + len(result.errors), 1)) * 100)
+
     ci_output = {
-        "passed":            result.passed,
+        "passed":              result.passed,
         "original_risk_class": rc,
-        "final_risk_class":  rc,
-        "risk_escalated":    False,
-        "compliance_score":  int((len(result.info) / max(len(result.info) + len(result.errors), 1)) * 100),
-        "errors":            result.errors,
-        "warnings":          result.warnings,
-        "timestamp":         timestamp,
-        "file":              file_path,
-        "file_hash":         generate_audit_report.__wrapped_hash__ if hasattr(generate_audit_report, '__wrapped_hash__') else "",
+        "final_risk_class":    rc,
+        "risk_escalated":      False,
+        "compliance_score":    score,
+        "file":                file_path,
+        "file_hash":           file_hash,
+        "signature":           signature,
+        "policy_version":      POLICY_VERSION,
+        "run_id":              run_id,
+        "errors":              result.errors,
+        "warnings":            result.warnings,
+        "timestamp":           timestamp,
     }
+
     print(f"\n{'─' * 60}")
     print("JSON Output (for CI/CD):")
     print(json.dumps(ci_output, indent=2, ensure_ascii=False))
