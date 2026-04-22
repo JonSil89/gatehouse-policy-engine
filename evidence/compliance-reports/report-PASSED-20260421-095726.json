@@ -1,0 +1,34 @@
+{
+  "audit_status": "PASSED",
+  "timestamp": "2026-04-21T09:57:26Z",
+  "file": "examples/valid/muutospyynto-hyvaksytty.md",
+  "file_hash": "874d9636bef7556938d3e0a65326f23fef1570e01c09b25b949c51ca757757d2",
+  "risk_class": 2,
+  "compliance_score": 100,
+  "passed": true,
+  "errors": [],
+  "warnings": [
+    "Mahdollinen absoluuttinen polku havaittu: /CD-putken"
+  ],
+  "info": [
+    "Validointi aloitettu: 2026-04-21T09:57:26Z",
+    "Tiedosto: examples/valid/muutospyynto-hyvaksytty.md",
+    "Osio löytyi: 'Perustiedot'",
+    "Osio löytyi: 'Kuvaus'",
+    "Osio löytyi: 'Vaikutusanalyysi'",
+    "Kenttä täytetty: 'Muutoksen nimi'",
+    "Kenttä täytetty: 'Pyytäjä'",
+    "Kenttä täytetty: 'Päivämäärä'",
+    "Kenttä täytetty: 'Riskiluokka'",
+    "Kenttä täytetty: 'Kohdeympäristö'",
+    "Riskiluokka: 2",
+    "Palautussuunnitelma: OK",
+    "Hyväksyjät: 2/2 (OK)",
+    "Testaussuunnitelma: OK"
+  ],
+  "iso_controls_triggered": [
+    "A.12.1.2",
+    "A.14.2.2",
+    "A.12.4.1"
+  ]
+}

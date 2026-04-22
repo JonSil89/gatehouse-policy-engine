@@ -1,0 +1,28 @@
+{
+  "audit_status": "FAILED",
+  "timestamp": "2026-04-20T23:34:15Z",
+  "file": "ISO-27001-COMPLIANCE-MAPPING.md",
+  "risk_class": null,
+  "passed": false,
+  "errors": [
+    "Pakollinen osio puuttuu: 'Perustiedot'",
+    "Pakollinen osio puuttuu: 'Kuvaus'",
+    "Pakollinen osio puuttuu: 'Vaikutusanalyysi'",
+    "Pakollinen kenttä puuttuu tai ei ole täytetty: 'Muutoksen nimi'",
+    "Pakollinen kenttä puuttuu tai ei ole täytetty: 'Pyytäjä'",
+    "Pakollinen kenttä puuttuu tai ei ole täytetty: 'Päivämäärä'",
+    "Pakollinen kenttä puuttuu tai ei ole täytetty: 'Riskiluokka'",
+    "Pakollinen kenttä puuttuu tai ei ole täytetty: 'Kohdeympäristö'",
+    "Riskiluokka puuttuu tai on virheellinen (1, 2 tai 3)"
+  ],
+  "warnings": [],
+  "info": [
+    "Validointi aloitettu: 2026-04-20T23:34:15Z",
+    "Tiedosto: ISO-27001-COMPLIANCE-MAPPING.md"
+  ],
+  "iso_controls": [
+    "A.12.1.2",
+    "A.14.2.2",
+    "A.12.4.1"
+  ]
+}
