@@ -1,0 +1,28 @@
+{
+  "policy": {
+    "required_sections": [
+      "Perustiedot",
+      "Kuvaus",
+      "Vaikutusanalyysi"
+    ],
+    "required_approvers": {
+      "1": 1,
+      "2": 2,
+      "3": 3
+    },
+    "allowed_environments": [
+      "dev",
+      "staging",
+      "production"
+    ],
+    "freeze_periods": [],
+    "rule_toggles": {
+      "require_risk_justification": true,
+      "require_rollback_for_class_2_3": true,
+      "require_rollback_test_for_class_3": true,
+      "require_test_plan_for_class_2_3": true,
+      "require_freeze_check_for_class_3": true,
+      "warn_on_absolute_paths": true
+    }
+  }
+}
