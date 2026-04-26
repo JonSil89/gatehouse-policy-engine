@@ -1,0 +1,33 @@
+{
+  "audit_status": "FAILED",
+  "timestamp": "2026-04-26T15:57:17Z",
+  "file": "C:/Users/jonne/AppData/Local/Temp/test-fail.md",
+  "file_hash": "e2c47e75a90055cdbda738d6bac5b4322a723824b042359713fad627b83732cc",
+  "signature": "sig_fd657997adcd9d6f",
+  "policy_version": "v2.1.0",
+  "run_id": "local",
+  "risk_class": null,
+  "compliance_score": 18,
+  "passed": false,
+  "errors": [
+    "Pakollinen osio puuttuu: 'Perustiedot'",
+    "Pakollinen osio puuttuu: 'Kuvaus'",
+    "Pakollinen osio puuttuu: 'Vaikutusanalyysi'",
+    "Pakollinen kenttä puuttuu tai ei ole täytetty: 'Muutoksen nimi'",
+    "Pakollinen kenttä puuttuu tai ei ole täytetty: 'Pyytäjä'",
+    "Pakollinen kenttä puuttuu tai ei ole täytetty: 'Päivämäärä'",
+    "Pakollinen kenttä puuttuu tai ei ole täytetty: 'Riskiluokka'",
+    "Pakollinen kenttä puuttuu tai ei ole täytetty: 'Kohdeympäristö'",
+    "Riskiluokka puuttuu tai on virheellinen (1, 2 tai 3)"
+  ],
+  "warnings": [],
+  "info": [
+    "Validointi aloitettu: 2026-04-26T15:57:17Z",
+    "Tiedosto: C:/Users/jonne/AppData/Local/Temp/test-fail.md"
+  ],
+  "iso_controls_triggered": [
+    "A.12.1.2",
+    "A.14.2.2",
+    "A.12.4.1"
+  ]
+}

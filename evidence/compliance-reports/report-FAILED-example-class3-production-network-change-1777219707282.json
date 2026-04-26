@@ -1,0 +1,40 @@
+{
+  "audit_status": "FAILED",
+  "timestamp": "2026-04-26T16:08:27Z",
+  "file": "examples/example-class3-production-network-change.md",
+  "file_hash": "ee7733f4ccd798cc04b1aa7eebd038cf29965afb3d8ca43d432ee162057052e1",
+  "signature": "sig_ac290204e8dc5ee5",
+  "policy_version": "v2.1.0",
+  "run_id": "local",
+  "risk_class": 3,
+  "compliance_score": 75,
+  "passed": false,
+  "errors": [
+    "Pakollinen kenttä puuttuu tai ei ole täytetty: 'Kohdeympäristö'",
+    "Palautusstrategia ei ole täytetty",
+    "CISO-hyväksyntä puuttuu (vaaditaan luokalle 3)",
+    "Jäädytysikkuna puuttuu (vaaditaan luokalle 3)"
+  ],
+  "warnings": [
+    "Tuntematon ympäristö: prod"
+  ],
+  "info": [
+    "Validointi aloitettu: 2026-04-26T16:08:27Z",
+    "Tiedosto: examples/example-class3-production-network-change.md",
+    "Osio löytyi: 'Perustiedot'",
+    "Osio löytyi: 'Kuvaus'",
+    "Osio löytyi: 'Vaikutusanalyysi'",
+    "Kenttä täytetty: 'Muutoksen nimi'",
+    "Kenttä täytetty: 'Pyytäjä'",
+    "Kenttä täytetty: 'Päivämäärä'",
+    "Kenttä täytetty: 'Riskiluokka'",
+    "Riskiluokka: 3",
+    "Hyväksyjät: 3/3 (OK)",
+    "Testaussuunnitelma: OK"
+  ],
+  "iso_controls_triggered": [
+    "A.12.1.2",
+    "A.14.2.2",
+    "A.12.4.1"
+  ]
+}
